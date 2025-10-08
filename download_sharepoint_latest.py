@@ -113,6 +113,7 @@ def load_patterns(mapping_path: Path, only_sysfr: bool) -> list[str]:
             continue
         
         # Transform .csv patterns to .csv.zip for SharePoint search
+        # Keep .xlsb patterns as-is (they don't come in zip format)
         if pat.endswith(".csv"):
             pat = pat[:-4] + ".csv.zip"
         

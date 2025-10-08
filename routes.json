@@ -17,9 +17,9 @@
   {"pattern": "SYSFR_PGM_SESAME_WORKFLOW_*.csv",        "dest": "C:\\Users\\il00030293\\OneDrive - Sysco Corporation\\Documents\\PGM\\FR Scorecard\\3. Clicks and other indicators\\Inputs\\First time validation data"},
   {"pattern": "SYSFR_PGM_TARIF_GENERAL_*.csv",          "dest": "C:\\Users\\il00030293\\OneDrive - Sysco Corporation\\Documents\\PGM\\FR Scorecard\\1. Input consolidation\\Inputs\\Tarif general"},
   {"pattern": "SYSFR_PGM_TARIF_GENERAL_*.csv",          "dest": "C:\\Users\\il00030293\\OneDrive - Sysco Corporation\\Documents\\PGM\\FR BB\\1. Inputs\\Sales X Purchase\\Latest Tarif General"},
-  {"pattern": "SYSFR_PGM_SUPPLIERS_PROMOTION_DATA*.csv", "dest": "C:\\Users\\il00030293\\OneDrive - Sysco Corporation\\Documents\\PGM\\FR BB\\1. Inputs\\P&L\\Suppliers Promotion Data"},
+  {"pattern": "SYSFR_PGM_SUPPLIERS_PROMOTION_DATA*.xlsb", "dest": "C:\\Users\\il00030293\\OneDrive - Sysco Corporation\\Documents\\PGM\\FR BB\\1. Inputs\\P&L\\Suppliers Promotion Data"},
   {"pattern": "Lumpsums*.*", "dest": "C:\\Users\\il00030293\\OneDrive - Sysco Corporation\\Documents\\PGM\\FR BB\\1. Inputs\\P&L\\Lumpsums"},
-  {"pattern": "Bible 3xNET Conso *.xlsx", "dest": "C:\\Users\\il00030293\\OneDrive - Sysco Corporation\\Documents\\PGM\\FR BB\\1. Inputs\\P&L\\Bible"},
-  {"pattern": "SYSFR_PGM_LISTE_PRIX_PROMOS_PONCT*.csv", "dest": "C:\\Users\\il00030293\\OneDrive - Sysco Corporation\\Documents\\PGM\\FR BB\\1. Inputs\\P&L\\Promo Ponctuelle"},
-  {"pattern": "SYSFR_PGM_LISTE_PRIX_PROMOS_PERMAN*.csv", "dest": "C:\\Users\\il00030293\\OneDrive - Sysco Corporation\\Documents\\PGM\\FR BB\\1. Inputs\\P&L\\Promotion Permanentes"}
+  {"pattern": "Bible 3xNET Conso *.xlsb", "dest": "C:\\Users\\il00030293\\OneDrive - Sysco Corporation\\Documents\\PGM\\FR BB\\1. Inputs\\P&L\\Bible"},
+  {"pattern": "SYSFR_PGM_LISTE_PRIX_PROMOS_PONCT*.xlsx", "dest": "C:\\Users\\il00030293\\OneDrive - Sysco Corporation\\Documents\\PGM\\FR BB\\1. Inputs\\P&L\\Promo Ponctuelle"},
+  {"pattern": "SYSFR_PGM_LISTE_PRIX_PROMOS_PERMAN*.xlsx", "dest": "C:\\Users\\il00030293\\OneDrive - Sysco Corporation\\Documents\\PGM\\FR BB\\1. Inputs\\P&L\\Promotion Permanentes"}
 ]
