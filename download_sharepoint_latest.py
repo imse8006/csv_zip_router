@@ -38,20 +38,15 @@ import urllib3
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 ssl._create_default_https_context = ssl._create_unverified_context
 
-# Monkey-patch requests to disable SSL globally
+# Patch requests to disable SSL verification
 import requests
-from requests.adapters import HTTPAdapter
-from urllib3.poolmanager import PoolManager
+requests.packages.urllib3.disable_warnings()
 
-class NoSSLHTTPAdapter(HTTPAdapter):
-    def init_poolmanager(self, *args, **kwargs):
-        kwargs['ssl_version'] = ssl.PROTOCOL_TLS
-        kwargs['cert_reqs'] = ssl.CERT_NONE
-        kwargs['assert_hostname'] = False
-        return super().init_poolmanager(*args, **kwargs)
-
-# Apply the adapter globally
-requests.Session.mount = lambda self, prefix, adapter: super(requests.Session, self).mount(prefix, NoSSLHTTPAdapter())
+original_request = requests.Session.request
+def patched_request(self, *args, **kwargs):
+    kwargs['verify'] = False
+    return original_request(self, *args, **kwargs)
+requests.Session.request = patched_request
 
 try:
     from office365.sharepoint.client_context import ClientContext
