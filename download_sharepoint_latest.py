@@ -27,11 +27,31 @@ import fnmatch
 from pathlib import Path
 import sys
 import ssl
-import urllib3
+import os
 
-# Disable SSL warnings for corporate proxies
+# Disable SSL verification BEFORE importing office365
+os.environ['REQUESTS_CA_BUNDLE'] = ''
+os.environ['CURL_CA_BUNDLE'] = ''
+os.environ['PYTHONHTTPSVERIFY'] = '0'
+
+import urllib3
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 ssl._create_default_https_context = ssl._create_unverified_context
+
+# Monkey-patch requests to disable SSL globally
+import requests
+from requests.adapters import HTTPAdapter
+from urllib3.poolmanager import PoolManager
+
+class NoSSLHTTPAdapter(HTTPAdapter):
+    def init_poolmanager(self, *args, **kwargs):
+        kwargs['ssl_version'] = ssl.PROTOCOL_TLS
+        kwargs['cert_reqs'] = ssl.CERT_NONE
+        kwargs['assert_hostname'] = False
+        return super().init_poolmanager(*args, **kwargs)
+
+# Apply the adapter globally
+requests.Session.mount = lambda self, prefix, adapter: super(requests.Session, self).mount(prefix, NoSSLHTTPAdapter())
 
 try:
     from office365.sharepoint.client_context import ClientContext
