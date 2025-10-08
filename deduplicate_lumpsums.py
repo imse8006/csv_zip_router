@@ -5,13 +5,21 @@ from openpyxl import load_workbook
 from openpyxl.utils.dataframe import dataframe_to_rows
 from openpyxl.styles import Font, Alignment, Border, Side
 
+# Try to import pyxlsb for .xlsb files
+try:
+    import pyxlsb
+    HAS_PYXLSB = True
+except ImportError:
+    HAS_PYXLSB = False
+    print("Warning: pyxlsb not installed. Cannot read .xlsb files. Install with: pip install pyxlsb")
+
 # Base directory where downloads are placed
 FRANCE_FILES_DIR = Path(r"C:\Users\il00030293\OneDrive - Sysco Corporation\Documents\PGM\France files")
 
 # Resolve latest Lumpsums file (pattern: "Lumpsums - vYYYY.MM.DD.xlsx")
 def get_latest_lumpsums_file(base_dir: Path) -> Path:
     candidates = sorted(
-        base_dir.glob("Lumpsums - v*.xlsx"),
+        base_dir.glob("Lumpsums - v*.xlsb"),
         key=lambda p: p.stat().st_mtime,
         reverse=True,
     )
@@ -25,6 +33,24 @@ output_file_name = str(latest_input.with_stem(latest_input.stem + "_output"))
 sheet_name = 'Lumpsums 2025'
 
 def deduplicate_and_preserve_format(input_file_name, output_file_name, sheet_name):
+    # If input is .xlsb, convert to .xlsx first
+    if input_file_name.endswith('.xlsb'):
+        if not HAS_PYXLSB:
+            print(f"Error: Cannot process .xlsb files without pyxlsb. Install with: pip install pyxlsb")
+            return
+        
+        # Convert .xlsb to .xlsx
+        temp_xlsx = input_file_name.replace('.xlsb', '_temp.xlsx')
+        try:
+            # Read with pyxlsb and save as xlsx
+            df = pd.read_excel(input_file_name, engine='pyxlsb', sheet_name=sheet_name)
+            df.to_excel(temp_xlsx, index=False, engine='openpyxl', sheet_name=sheet_name)
+            input_file_name = temp_xlsx
+            print(f"Converted .xlsb to temporary .xlsx: {temp_xlsx}")
+        except Exception as e:
+            print(f"Error converting .xlsb to .xlsx: {e}")
+            return
+    
     wb = load_workbook(input_file_name)
     ws = wb[sheet_name]
     
@@ -151,5 +177,13 @@ def deduplicate_and_preserve_format(input_file_name, output_file_name, sheet_nam
     # 10) Final save
     wb.save(output_file_name)
     print(f"File saved successfully to: {output_file_name}")
+    
+    # 11) Clean up temporary file if it was created
+    if input_file_name.endswith('_temp.xlsx'):
+        try:
+            Path(input_file_name).unlink()
+            print(f"Cleaned up temporary file: {input_file_name}")
+        except Exception as e:
+            print(f"Warning: Could not delete temporary file {input_file_name}: {e}")
 
 deduplicate_and_preserve_format(input_file_name, output_file_name, sheet_name)

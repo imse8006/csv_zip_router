@@ -20,6 +20,14 @@ from pathlib import Path
 from datetime import datetime
 import re
 
+# Try to import pyxlsb for .xlsb files
+try:
+    import pyxlsb
+    HAS_PYXLSB = True
+except ImportError:
+    HAS_PYXLSB = False
+    print("Warning: pyxlsb not installed. Cannot read .xlsb files. Install with: pip install pyxlsb")
+
 # Base directory where downloads are placed
 FRANCE_FILES_DIR = Path(r"C:\Users\il00030293\OneDrive - Sysco Corporation\Documents\PGM\France files")
 
@@ -49,9 +57,13 @@ def process_suppliers_promotion_data():
     input_file = files[0]
     print(f"  Found file: {input_file.name}")
     
+    if not HAS_PYXLSB:
+        print(f"  Error: Cannot process .xlsb files without pyxlsb. Install with: pip install pyxlsb")
+        return
+    
     try:
-        # Read XLSB file
-        df = pd.read_excel(input_file, engine='openpyxl')
+        # Read XLSB file using pyxlsb
+        df = pd.read_excel(input_file, engine='pyxlsb')
         
         # Convert columns F and G to numeric
         if 'Remises / Promo' in df.columns:
@@ -84,6 +96,10 @@ def process_bible():
     input_file = files[0]
     print(f"  Found file: {input_file.name}")
     
+    if not HAS_PYXLSB:
+        print(f"  Error: Cannot process .xlsb files without pyxlsb. Install with: pip install pyxlsb")
+        return
+    
     try:
         # Extract year from filename (e.g., "Bible 3xNET Conso 2025.xlsb" -> "2025")
         year_match = re.search(r'(\d{4})', input_file.stem)
@@ -99,7 +115,7 @@ def process_bible():
         output_file = FRANCE_FILES_DIR / new_filename
         
         # Read XLSB and save as XLSX
-        df = pd.read_excel(input_file, engine='openpyxl')
+        df = pd.read_excel(input_file, engine='pyxlsb')
         df.to_excel(output_file, index=False, engine='openpyxl')
         
         print(f"  Saved to: {output_file}")
@@ -111,7 +127,7 @@ def process_promos_ponctuelles():
     """Process PROMOS_PONCTUELLES file: no processing needed."""
     print("Processing PROMOS_PONCTUELLES...")
     
-    pattern = "SYSFR_PGM_LISTE_PRIX_PROMOS_PONCT*.xlsb"
+    pattern = "SYSFR_PGM_LISTE_PRIX_PROMOS_PONCT*.xlsx"
     files = list(FRANCE_FILES_DIR.glob(pattern))
     
     if not files:
@@ -124,7 +140,7 @@ def process_promos_permanentes():
     """Process PROMOS_PERMANENTES file: no processing needed."""
     print("Processing PROMOS_PERMANENTES...")
     
-    pattern = "SYSFR_PGM_LISTE_PRIX_PROMOS_PERMAN*.xlsb"
+    pattern = "SYSFR_PGM_LISTE_PRIX_PROMOS_PERMAN*.xlsx"
     files = list(FRANCE_FILES_DIR.glob(pattern))
     
     if not files:
