@@ -21,7 +21,7 @@ $Lumpsums  = Join-Path $ScriptDir 'deduplicate_lumpsums.py'
 $NonSysfr  = Join-Path $ScriptDir 'process_non_sysfr_files.py'
 $Mapping   = Join-Path $ScriptDir 'routes.json'
 
-Write-Host "[1/5] Download SYSFR_PGM_ files from SharePoint -> $OutDir" -ForegroundColor Cyan
+Write-Host "[1/6] Download SYSFR_PGM_ files from SharePoint -> $OutDir" -ForegroundColor Cyan
 $argsDownloadSysfr = @(
     $Downloader,
     '--site', $SiteUrl,
@@ -35,7 +35,7 @@ if ($NoWarnAge) { $argsDownloadSysfr += '--no-warn-age' }
 
 & py @argsDownloadSysfr
 
-Write-Host "[2/5] Download 5 non-SYSFR_PGM_ files from SharePoint -> $OutDir" -ForegroundColor Cyan
+Write-Host "[2/6] Download 5 non-SYSFR_PGM_ files from SharePoint -> $OutDir" -ForegroundColor Cyan
 $argsDownloadNonSysfr = @(
     $Downloader,
     '--site', $SiteUrl,
@@ -56,13 +56,13 @@ if ($PauseSeconds -gt 0) {
   Start-Sleep -Seconds $PauseSeconds
 }
 
-Write-Host "[3/5] Run lumpsums deduplication on France files" -ForegroundColor Cyan
+Write-Host "[3/6] Run lumpsums deduplication on France files" -ForegroundColor Cyan
 & py $Lumpsums
 
-Write-Host "[4/5] Process non-SYSFR_PGM_ files" -ForegroundColor Cyan
+Write-Host "[4/6] Process non-SYSFR_PGM_ files" -ForegroundColor Cyan
 & py $NonSysfr
 
-Write-Host "[5/5] Route downloaded files according to routes.json" -ForegroundColor Cyan
+Write-Host "[5/6] Route downloaded files according to routes.json" -ForegroundColor Cyan
 $argsRoute = @(
     $Router,
     $OutDir,
@@ -74,6 +74,9 @@ $argsRoute = @(
 )
 
 & py @argsRoute
+
+Write-Host "[6/6] Route individual processed files" -ForegroundColor Cyan
+& py route_individual_files.py
 
 Write-Host "Pipeline done." -ForegroundColor Green
 
