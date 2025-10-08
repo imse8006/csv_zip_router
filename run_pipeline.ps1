@@ -1,7 +1,8 @@
 param(
     [Parameter(Mandatory=$true)] [string]$ClientId,
     [Parameter(Mandatory=$true)] [string]$ClientSecret,
-    [Parameter(Mandatory=$true)] [string]$FolderRel,  # ex: /sites/PGMDatabaseSyscoandBain/Shared Documents/General/<chemin parent>
+    [string]$FolderSysfr = "/sites/PGMDatabaseSyscoandBain/Shared Documents/General/FR/3. Exports de données pour Bain/2. Exports hebdomadaires/03. CY2025",
+    [string]$FolderNonSysfr = "/sites/PGMDatabaseSyscoandBain/Shared Documents/General/FR/3. Exports de données pour Bain/2. Exports hebdomadaires/1. Exports mensuels",
     [switch]$NoWarnAge = $false,
     [int]$PauseSeconds = 10,
     [string]$SiteUrl = "https://sysco.sharepoint.com/sites/PGMDatabaseSyscoandBain",
@@ -16,21 +17,38 @@ $ErrorActionPreference = 'Stop'
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $Downloader = Join-Path $ScriptDir 'download_sharepoint_latest.py'
 $Router    = Join-Path $ScriptDir 'csv_zip_router.py'
+$Lumpsums  = Join-Path $ScriptDir 'deduplicate_lumpsums.py'
+$NonSysfr  = Join-Path $ScriptDir 'process_non_sysfr_files.py'
 $Mapping   = Join-Path $ScriptDir 'routes.json'
 
-Write-Host "[1/2] Download latest SharePoint folder -> $OutDir" -ForegroundColor Cyan
-$argsDownload = @(
+Write-Host "[1/5] Download SYSFR_PGM_ files from SharePoint -> $OutDir" -ForegroundColor Cyan
+$argsDownloadSysfr = @(
     $Downloader,
     '--site', $SiteUrl,
     '--client-id', $ClientId,
     '--client-secret', $ClientSecret,
-    '--folder', $FolderRel,
+    '--folder', $FolderSysfr,
     '--mapping', $Mapping,
     '--out', $OutDir
 )
-if ($NoWarnAge) { $argsDownload += '--no-warn-age' }
+if ($NoWarnAge) { $argsDownloadSysfr += '--no-warn-age' }
 
-& py @argsDownload
+& py @argsDownloadSysfr
+
+Write-Host "[2/5] Download 5 non-SYSFR_PGM_ files from SharePoint -> $OutDir" -ForegroundColor Cyan
+$argsDownloadNonSysfr = @(
+    $Downloader,
+    '--site', $SiteUrl,
+    '--client-id', $ClientId,
+    '--client-secret', $ClientSecret,
+    '--folder', $FolderNonSysfr,
+    '--mapping', $Mapping,
+    '--out', $OutDir,
+    '--include-non-sysfr'
+)
+if ($NoWarnAge) { $argsDownloadNonSysfr += '--no-warn-age' }
+
+& py @argsDownloadNonSysfr
 
 # Petite pause (fichiers lourds) avant tout traitement/ upload en aval
 if ($PauseSeconds -gt 0) {
@@ -38,7 +56,13 @@ if ($PauseSeconds -gt 0) {
   Start-Sleep -Seconds $PauseSeconds
 }
 
-Write-Host "[2/2] Route downloaded files according to routes.json" -ForegroundColor Cyan
+Write-Host "[3/5] Run lumpsums deduplication on France files" -ForegroundColor Cyan
+& py $Lumpsums
+
+Write-Host "[4/5] Process non-SYSFR_PGM_ files" -ForegroundColor Cyan
+& py $NonSysfr
+
+Write-Host "[5/5] Route downloaded files according to routes.json" -ForegroundColor Cyan
 $argsRoute = @(
     $Router,
     $OutDir,

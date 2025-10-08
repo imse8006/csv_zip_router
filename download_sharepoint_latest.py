@@ -26,6 +26,12 @@ import json
 import fnmatch
 from pathlib import Path
 import sys
+import ssl
+import urllib3
+
+# Disable SSL warnings for corporate proxies
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+ssl._create_default_https_context = ssl._create_unverified_context
 
 try:
     from office365.sharepoint.client_context import ClientContext
@@ -125,6 +131,19 @@ def download_files_in_folder(ctx, folder_rel_url: str, out_dir: Path, patterns: 
     return count
 
 
+# French month names with proper accents and Title Case
+MONTHS_FR_TITLE = [
+    "Janvier", "Février", "Mars", "Avril", "Mai", "Juin",
+    "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"
+]
+
+
+def previous_month_title_fr() -> str:
+    now = datetime.now()
+    idx = (now.month - 2) % 12  # previous month, 0-based
+    return MONTHS_FR_TITLE[idx]
+
+
 def main() -> int:
     args = parse_args()
 
@@ -144,6 +163,12 @@ def main() -> int:
         age_days = (datetime.utcnow() - created_dt.replace(tzinfo=None)).days
         if age_days > 7:
             print(f"WARNING: Latest folder is {age_days} days old (>7 days)")
+    # Additional check for the 5-file drop: folder name should contain last month in French (Title Case)
+    if getattr(args, "include_non_sysfr", False):
+        expected_month = previous_month_title_fr()
+        folder_name = rel_url.rsplit('/', 1)[-1]
+        if expected_month not in folder_name:
+            print(f"WARNING: Expected month name '{expected_month}' not found in folder name '{folder_name}'")
 
     patterns = load_patterns(args.mapping, only_sysfr=not args.include_non_sysfr)
     downloaded = download_files_in_folder(ctx, rel_url, args.out, patterns)
