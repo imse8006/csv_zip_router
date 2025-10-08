@@ -147,7 +147,17 @@ def previous_month_title_fr() -> str:
 def main() -> int:
     args = parse_args()
 
+    # Disable SSL verification for office365 requests
+    import os
+    os.environ['REQUESTS_CA_BUNDLE'] = ''
+    os.environ['CURL_CA_BUNDLE'] = ''
+    
     ctx = ClientContext(args.site).with_credentials(ClientCredential(args.client_id, args.client_secret))
+    
+    # Monkey-patch the session to disable SSL verification
+    if hasattr(ctx, '_client') and hasattr(ctx._client, 'session'):
+        ctx._client.session.verify = False
+    
     ctx.load(ctx.web)
     ctx.execute_query()
 
