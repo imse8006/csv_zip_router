@@ -1,8 +1,8 @@
 param(
     [Parameter(Mandatory=$true)] [string]$ClientId,
     [Parameter(Mandatory=$true)] [string]$ClientSecret,
-    [string]$FolderSysfr = "/sites/PGMDatabaseSyscoandBain/Shared Documents/General/FR/3. Exports de données pour Bain/2. Exports hebdomadaires/03. CY2025",
-    [string]$FolderNonSysfr = "/sites/PGMDatabaseSyscoandBain/Shared Documents/General/FR/3. Exports de données pour Bain/2. Exports hebdomadaires/1. Exports mensuels",
+    [string]$FolderSysfr = "/sites/PGMDatabaseSyscoandBain/Shared Documents/General/FR/3.%20Exports%20de%20donn%C3%A9es%20pour%20Bain/2.%20Exports%20hebdomadaires/03.%20CY2025",
+    [string]$FolderNonSysfr = "/sites/PGMDatabaseSyscoandBain/Shared Documents/General/FR/3.%20Exports%20de%20donn%C3%A9es%20pour%20Bain/2.%20Exports%20hebdomadaires/1.%20Exports%20mensuels",
     [switch]$NoWarnAge = $false,
     [int]$PauseSeconds = 10,
     [string]$SiteUrl = "https://sysco.sharepoint.com/sites/PGMDatabaseSyscoandBain",
