@@ -75,10 +75,15 @@ def parse_args() -> argparse.Namespace:
 
 
 def pick_latest_subfolder(ctx, parent_rel_url: str):
+    print(f"Looking for subfolders in: {parent_rel_url}")
     folder = ctx.web.get_folder_by_server_relative_url(parent_rel_url)
     subfolders = folder.folders
     ctx.load(subfolders)
     ctx.execute_query()
+
+    print(f"Found {len(subfolders)} subfolders")
+    for i, sf in enumerate(subfolders):
+        print(f"  {i+1}. {sf.properties.get('Name', 'Unknown')}")
 
     latest = None
     for sf in subfolders:  # type: ignore
@@ -100,6 +105,7 @@ def pick_latest_subfolder(ctx, parent_rel_url: str):
 def load_patterns(mapping_path: Path, only_sysfr: bool) -> list[str]:
     """Load patterns from routes.json.
     When only_sysfr=True, restrict to those starting with SYSFR_PGM_.
+    Transform .csv patterns to .csv.zip for SharePoint search.
     """
     data = json.loads(mapping_path.read_text(encoding="utf-8"))
     patterns = []
@@ -110,6 +116,11 @@ def load_patterns(mapping_path: Path, only_sysfr: bool) -> list[str]:
             continue
         if not pat:
             continue
+        
+        # Transform .csv patterns to .csv.zip for SharePoint search
+        if pat.endswith(".csv"):
+            pat = pat[:-4] + ".csv.zip"
+        
         if only_sysfr:
             if pat.startswith("SYSFR_PGM_"):
                 # Exclure les promos du premier téléchargement SYSFR_PGM_
