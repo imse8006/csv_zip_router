@@ -75,15 +75,10 @@ def parse_args() -> argparse.Namespace:
 
 
 def pick_latest_subfolder(ctx, parent_rel_url: str):
-    print(f"Looking for subfolders in: {parent_rel_url}")
     folder = ctx.web.get_folder_by_server_relative_url(parent_rel_url)
     subfolders = folder.folders
     ctx.load(subfolders)
     ctx.execute_query()
-
-    print(f"Found {len(subfolders)} subfolders")
-    for i, sf in enumerate(subfolders):
-        print(f"  {i+1}. {sf.properties.get('Name', 'Unknown')}")
 
     latest = None
     for sf in subfolders:  # type: ignore
