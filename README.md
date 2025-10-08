@@ -41,7 +41,7 @@ This pipeline automatically downloads files from SharePoint, processes them, and
 - PowerShell
 - Dependencies:
 ```powershell
-pip install Office365-REST-Python-Client PyYAML pywin32
+pip install Office365-REST-Python-Client PyYAML pywin32 pandas openpyxl pyxlsb
 ```
 
 ## Setup
@@ -60,7 +60,7 @@ Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
 
 ### 2. Install dependencies
 ```powershell
-pip install Office365-REST-Python-Client PyYAML pywin32
+pip install Office365-REST-Python-Client PyYAML pywin32 pandas openpyxl pyxlsb
 ```
 
 ## Commands
