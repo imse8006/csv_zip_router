@@ -19,6 +19,7 @@ import pandas as pd
 from pathlib import Path
 from datetime import datetime
 import re
+import os
 
 # Try to import pyxlsb for .xlsb files
 try:
@@ -27,6 +28,14 @@ try:
 except ImportError:
     HAS_PYXLSB = False
     print("Warning: pyxlsb not installed. Cannot read .xlsb files. Install with: pip install pyxlsb")
+
+# Try to import win32com for .xlsb to .xlsx conversion
+try:
+    import win32com.client
+    HAS_WIN32COM = True
+except ImportError:
+    HAS_WIN32COM = False
+    print("Warning: win32com not installed. Cannot convert .xlsb to .xlsx. Install with: pip install pywin32")
 
 # Base directory where downloads are placed
 FRANCE_FILES_DIR = Path(r"C:\Users\il00030293\OneDrive - Sysco Corporation\Documents\PGM\France files")
@@ -106,15 +115,17 @@ def process_bible():
         year = year_match.group(1)
         prev_month = get_previous_month()
         
-        # Create new filename with previous month
-        new_filename = f"Bible 3xNET Conso {year} {prev_month}.xlsb"
-        output_file = FRANCE_FILES_DIR / new_filename
+        # Create new filenames with previous month (both .xlsb and .xlsx)
+        new_xlsb_filename = f"Bible 3xNET Conso {year} {prev_month}.xlsb"
+        new_xlsx_filename = f"Bible 3xNET Conso {year} {prev_month}.xlsx"
+        output_xlsb = FRANCE_FILES_DIR / new_xlsb_filename
+        output_xlsx = FRANCE_FILES_DIR / new_xlsx_filename
         
-        # Check if the target file already exists
-        if output_file.exists():
-            # File with correct month already exists, delete the downloaded file
+        # Check if both target files already exist
+        if output_xlsb.exists() and output_xlsx.exists():
+            # Both files with correct month already exist, delete the downloaded file
             input_file.unlink()
-            print(f"  File already exists with correct month: {output_file.name}")
+            print(f"  Files already exist with correct month: {output_xlsb.name} and {output_xlsx.name}")
             print(f"  Deleted downloaded file: {input_file.name}")
             return
         
@@ -138,9 +149,30 @@ def process_bible():
                 else:
                     print(f"  ✓ Verified: Latest existing file month is correct ({latest_month})")
         
-        # Rename the file
-        input_file.rename(output_file)
-        print(f"  Renamed to: {output_file.name}")
+        # Rename the .xlsb file
+        input_file.rename(output_xlsb)
+        print(f"  Renamed .xlsb to: {output_xlsb.name}")
+        
+        # Convert .xlsb to .xlsx using Excel COM
+        if not HAS_WIN32COM:
+            print(f"  Warning: Cannot create .xlsx version without win32com")
+        else:
+            try:
+                excel = win32com.client.Dispatch('Excel.Application')
+                excel.DisplayAlerts = False
+                excel.Visible = False
+                wb = excel.Workbooks.Open(os.path.abspath(output_xlsb))
+                # Save as xlsx (FileFormat 51 = xlsx)
+                wb.SaveAs(os.path.abspath(output_xlsx), FileFormat=51)
+                wb.Close()
+                excel.Quit()
+                print(f"  Created .xlsx version: {output_xlsx.name}")
+            except Exception as e:
+                print(f"  Error creating .xlsx version: {e}")
+                try:
+                    excel.Quit()
+                except:
+                    pass
         
     except Exception as e:
         print(f"  Error processing BIBLE: {e}")
