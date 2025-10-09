@@ -140,43 +140,27 @@ def load_mapping(mapping_path: Path) -> List[Dict[str, str]]:
     return cleaned
 
 
-def resolve_destination(
+def resolve_destinations(
     csv_name: str,
     mapping: List[Dict[str, str]],
     default_dest: Optional[Path]
-) -> Optional[Path]:
+) -> List[Path]:
     """
-    Given a CSV filename and the mapping rules, return the destination Path.
-    First match wins (top-to-bottom).
-    Special handling for BASE_RISTOURNABLE files with month suffix logic.
+    Given a CSV filename and the mapping rules, return all matching destination Paths.
+    Returns all destinations that match the pattern (not just the first one).
     """
+    destinations = []
+    
     for rule in mapping:
         if fnmatch.fnmatch(csv_name, rule["pattern"]):
             dest_path = Path(rule["dest"])
-            
-            # Special handling for BASE_RISTOURNABLE files
-            if "BASE_RISTOURNABLE" in csv_name and "P&L" in str(dest_path):
-                # Extract base filename without extension
-                base_filename = Path(csv_name).stem
-                
-                # Find the latest month in destination directory
-                latest_month = find_latest_month_in_destination(dest_path, base_filename)
-                
-                if latest_month:
-                    # Get next month
-                    next_month = get_next_month(latest_month)
-                    # Add month suffix to the filename
-                    csv_name = add_month_suffix_to_filename(csv_name, next_month)
-                    logging.info(f"Auto-detected next month for {base_filename}: {next_month}")
-                else:
-                    # No existing files, default to Sep (current month)
-                    csv_name = add_month_suffix_to_filename(csv_name, "Sep")
-                    logging.info(f"No existing files found, defaulting to Sep for {base_filename}")
-            
-            # (BIBLE and PROMOS specific renaming removed)
-            
-            return dest_path
-    return default_dest
+            destinations.append(dest_path)
+    
+    # If no destinations found, use default
+    if not destinations and default_dest:
+        destinations.append(default_dest)
+    
+    return destinations
 
 
 # --------------------------- Extraction logic ---------------------------
@@ -184,7 +168,8 @@ def resolve_destination(
 def safe_write(
     src_tmp: Path,
     dest_dir: Path,
-    on_conflict: str
+    on_conflict: str,
+    dest_filename: Optional[str] = None
 ) -> Path:
     """
     Move src_tmp into dest_dir respecting on_conflict:
@@ -194,7 +179,7 @@ def safe_write(
     Returns final path (even if skipped, returns existing path).
     """
     dest_dir.mkdir(parents=True, exist_ok=True)
-    target = dest_dir / src_tmp.name
+    target = dest_dir / (dest_filename or src_tmp.name)
 
     if target.exists():
         if on_conflict == "overwrite":
@@ -252,45 +237,85 @@ def extract_and_route_zip(
 
         for member in members:
             inner_name = Path(member).name  # ignore internal folders
-            dest_dir = resolve_destination(inner_name, mapping, default_dest)
-            if dest_dir is None:
+            dest_dirs = resolve_destinations(inner_name, mapping, default_dest)
+            if not dest_dirs:
                 logging.warning(f"No route for '{inner_name}'. Skipped. (Add a mapping or set --default-dest)")
                 results.append((zip_path, None))
                 continue
 
-            # Check if filename was modified (e.g., month suffix added)
+            # Use original filename for all destinations (month suffix logic is handled per destination)
             modified_name = inner_name
-            for rule in mapping:
-                if fnmatch.fnmatch(inner_name, rule["pattern"]):
-                    dest_path = Path(rule["dest"])
-                    if "BASE_RISTOURNABLE" in inner_name and "P&L" in str(dest_path):
-                        # The filename was modified in resolve_destination, we need to get it back
-                        base_filename = Path(inner_name).stem
-                        latest_month = find_latest_month_in_destination(dest_path, base_filename)
-                        if latest_month:
-                            next_month = get_next_month(latest_month)
-                            modified_name = add_month_suffix_to_filename(inner_name, next_month)
-                        else:
-                            modified_name = add_month_suffix_to_filename(inner_name, "Sep")
-                    break
 
             if dry_run:
-                logging.info(f"[DRY-RUN] {zip_path.name} -> {modified_name} => {dest_dir}")
-                results.append((zip_path, dest_dir / modified_name))
+                for dest_dir in dest_dirs:
+                    # Special handling for BASE_RISTOURNABLE files in dry-run
+                    current_filename = modified_name
+                    if "BASE_RISTOURNABLE" in modified_name and "P&L" in str(dest_dir):
+                        base_filename = Path(modified_name).stem
+                        latest_month = find_latest_month_in_destination(dest_dir, base_filename)
+                        if latest_month:
+                            next_month = get_next_month(latest_month)
+                            current_filename = add_month_suffix_to_filename(modified_name, next_month)
+                        else:
+                            current_filename = add_month_suffix_to_filename(modified_name, "Sep")
+                    
+                    logging.info(f"[DRY-RUN] {zip_path.name} -> {current_filename} => {dest_dir}")
+                    results.append((zip_path, dest_dir / current_filename))
                 continue
 
             # Extract to a temp staging area inside work_dir
             staging_dir = work_dir / f"__staging__{zip_path.stem}"
             staging_dir.mkdir(parents=True, exist_ok=True)
             
-            # Normal extraction for all files
+            # Extract once to staging area
             extracted_tmp = staging_dir / modified_name
             with zf.open(member, "r") as src, open(extracted_tmp, "wb") as dst:
                 shutil.copyfileobj(src, dst)
-            final_path = safe_write(extracted_tmp, dest_dir, on_conflict=on_conflict)
-
-            logging.info(f"Routed: {modified_name}  -->  {final_path}")
-            results.append((zip_path, final_path))
+            
+            # Copy to all destinations
+            temp_files_created = []
+            try:
+                for i, dest_dir in enumerate(dest_dirs):
+                    # Special handling for BASE_RISTOURNABLE files
+                    current_filename = modified_name
+                    if "BASE_RISTOURNABLE" in modified_name and "P&L" in str(dest_dir):
+                        # Extract base filename without extension
+                        base_filename = Path(modified_name).stem
+                        
+                        # Find the latest month in destination directory
+                        latest_month = find_latest_month_in_destination(dest_dir, base_filename)
+                        
+                        if latest_month:
+                            # Get next month
+                            next_month = get_next_month(latest_month)
+                            # Add month suffix to the filename
+                            current_filename = add_month_suffix_to_filename(modified_name, next_month)
+                            logging.info(f"Auto-detected next month for {base_filename}: {next_month}")
+                        else:
+                            # No existing files, default to Sep (current month)
+                            current_filename = add_month_suffix_to_filename(modified_name, "Sep")
+                            logging.info(f"No existing files found, defaulting to Sep for {base_filename}")
+                    
+                    # Create a temporary copy for each destination to avoid conflicts
+                    if current_filename != modified_name:
+                        temp_file = staging_dir / current_filename
+                        shutil.copy2(extracted_tmp, temp_file)
+                        temp_files_created.append(temp_file)
+                        final_path = safe_write(temp_file, dest_dir, on_conflict=on_conflict, dest_filename=current_filename)
+                    else:
+                        # Create a unique temporary copy for this destination
+                        temp_file = staging_dir / f"{modified_name}_temp_{i}"
+                        shutil.copy2(extracted_tmp, temp_file)
+                        temp_files_created.append(temp_file)
+                        final_path = safe_write(temp_file, dest_dir, on_conflict=on_conflict, dest_filename=current_filename)
+                    
+                    logging.info(f"Routed: {current_filename}  -->  {final_path}")
+                    results.append((zip_path, final_path))
+            finally:
+                # Clean up all temporary files
+                extracted_tmp.unlink(missing_ok=True)
+                for temp_file in temp_files_created:
+                    temp_file.unlink(missing_ok=True)
 
     return results
 
