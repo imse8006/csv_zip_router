@@ -110,6 +110,14 @@ def process_bible():
         new_filename = f"Bible 3xNET Conso {year} {prev_month}.xlsb"
         output_file = FRANCE_FILES_DIR / new_filename
         
+        # Check if the target file already exists
+        if output_file.exists():
+            # File with correct month already exists, delete the downloaded file
+            input_file.unlink()
+            print(f"  File already exists with correct month: {output_file.name}")
+            print(f"  Deleted downloaded file: {input_file.name}")
+            return
+        
         # Check for existing files in France files directory (excluding the current file)
         existing_files = [f for f in FRANCE_FILES_DIR.glob("Bible 3xNET Conso *.xlsb") 
                          if f.name != input_file.name and ' ' in f.stem.split()[-1]]
