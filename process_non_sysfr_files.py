@@ -74,8 +74,8 @@ def process_suppliers_promotion_data():
         # Create output filename (keep in France files for routing)
         output_file = FRANCE_FILES_DIR / f"{input_file.stem}.csv"
         
-        # Save as CSV UTF-8
-        df.to_csv(output_file, index=False, encoding='utf-8')
+        # Save as CSV UTF-8 with semicolon separator
+        df.to_csv(output_file, index=False, encoding='utf-8', sep='|')
         print(f"  Saved to: {output_file}")
         
     except Exception as e:
