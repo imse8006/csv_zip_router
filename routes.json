@@ -19,7 +19,7 @@
   {"pattern": "SYSFR_PGM_TARIF_GENERAL_*.csv",          "dest": "C:\\Users\\il00030293\\OneDrive - Sysco Corporation\\Documents\\PGM\\FR BB\\1. Inputs\\Sales X Purchase\\Latest Tarif General"},
   {"pattern": "SYSFR_PGM_SUPPLIERS_PROMOTION_DATA*.csv", "dest": "C:\\Users\\il00030293\\OneDrive - Sysco Corporation\\Documents\\PGM\\FR BB\\1. Inputs\\P&L\\Suppliers Promotion Data"},
   {"pattern": "Lumpsums*_output.*", "dest": "C:\\Users\\il00030293\\OneDrive - Sysco Corporation\\Documents\\PGM\\FR BB\\1. Inputs\\P&L\\Lumpsums"},
-  {"pattern": "Bible 3xNET Conso *.xlsx", "dest": "C:\\Users\\il00030293\\OneDrive - Sysco Corporation\\Documents\\PGM\\FR BB\\1. Inputs\\P&L\\Bible"},
+  {"pattern": "Bible 3xNET Conso *.xlsb", "dest": "C:\\Users\\il00030293\\OneDrive - Sysco Corporation\\Documents\\PGM\\FR BB\\1. Inputs\\P&L\\Bible"},
   {"pattern": "SYSFR_PGM_LISTE_PRIX_PROMOS_PONCT*.xlsx", "dest": "C:\\Users\\il00030293\\OneDrive - Sysco Corporation\\Documents\\PGM\\FR BB\\1. Inputs\\P&L\\Promo Ponctuelle"},
   {"pattern": "SYSFR_PGM_LISTE_PRIX_PROMOS_PERMAN*.xlsx", "dest": "C:\\Users\\il00030293\\OneDrive - Sysco Corporation\\Documents\\PGM\\FR BB\\1. Inputs\\P&L\\Promotion Permanentes"}
 ]

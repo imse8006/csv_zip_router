@@ -82,7 +82,7 @@ def process_suppliers_promotion_data():
         print(f"  Error processing SUPPLIERS_PROMOTION_DATA: {e}")
 
 def process_bible():
-    """Process BIBLE file: convert XLSB to XLSX with month suffix."""
+    """Process BIBLE file: no processing needed, file stays as .xlsb."""
     print("Processing BIBLE...")
     
     # Find the file
@@ -93,35 +93,7 @@ def process_bible():
         print(f"  No file found matching pattern: {pattern}")
         return
     
-    input_file = files[0]
-    print(f"  Found file: {input_file.name}")
-    
-    if not HAS_PYXLSB:
-        print(f"  Error: Cannot process .xlsb files without pyxlsb. Install with: pip install pyxlsb")
-        return
-    
-    try:
-        # Extract year from filename (e.g., "Bible 3xNET Conso 2025.xlsb" -> "2025")
-        year_match = re.search(r'(\d{4})', input_file.stem)
-        if not year_match:
-            print(f"  Could not extract year from filename: {input_file.name}")
-            return
-        
-        year = year_match.group(1)
-        prev_month = get_previous_month()
-        
-        # Create new filename (keep in France files for routing)
-        new_filename = f"Bible 3xNET Conso {year} {prev_month}.xlsx"
-        output_file = FRANCE_FILES_DIR / new_filename
-        
-        # Read XLSB and save as XLSX
-        df = pd.read_excel(input_file, engine='pyxlsb')
-        df.to_excel(output_file, index=False, engine='openpyxl')
-        
-        print(f"  Saved to: {output_file}")
-        
-    except Exception as e:
-        print(f"  Error processing BIBLE: {e}")
+    print(f"  Found file: {files[0].name} - no processing needed, keeping as .xlsb")
 
 def process_promos_ponctuelles():
     """Process PROMOS_PONCTUELLES file: no processing needed."""
