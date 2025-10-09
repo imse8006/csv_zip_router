@@ -46,16 +46,7 @@ def main():
         dest_dir.mkdir(parents=True, exist_ok=True)
         dest_file = dest_dir / src_file.name
         
-        # Handle conflicts by renaming
-        if dest_file.exists():
-            counter = 1
-            while True:
-                new_name = f"{dest_file.stem}_{counter}{dest_file.suffix}"
-                dest_file = dest_dir / new_name
-                if not dest_file.exists():
-                    break
-                counter += 1
-        
+        # Overwrite existing files (no renaming)
         shutil.copy2(src_file, dest_file)
         print(f"Routed: {src_file.name} --> {dest_file}")
     
