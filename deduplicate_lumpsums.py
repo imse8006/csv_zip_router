@@ -1,17 +1,18 @@
 import pandas as pd
 import re
+import os
 from pathlib import Path
 from openpyxl import load_workbook
 from openpyxl.utils.dataframe import dataframe_to_rows
 from openpyxl.styles import Font, Alignment, Border, Side
 
-# Try to import pyxlsb for .xlsb files
+# Try to import win32com for .xlsb conversion
 try:
-    import pyxlsb
-    HAS_PYXLSB = True
+    import win32com.client
+    HAS_WIN32COM = True
 except ImportError:
-    HAS_PYXLSB = False
-    print("Warning: pyxlsb not installed. Cannot read .xlsb files. Install with: pip install pyxlsb")
+    HAS_WIN32COM = False
+    print("Warning: win32com not installed. Cannot convert .xlsb files. Install with: pip install pywin32")
 
 # Base directory where downloads are placed
 FRANCE_FILES_DIR = Path(r"C:\Users\il00030293\OneDrive - Sysco Corporation\Documents\PGM\France files")
@@ -34,22 +35,31 @@ output_file_name = str(latest_input.with_stem(latest_input.stem + "_output").wit
 sheet_name = 'Lumpsums 2025'
 
 def deduplicate_and_preserve_format(input_file_name, output_file_name, sheet_name):
-    # If input is .xlsb, convert to .xlsx first
+    # If input is .xlsb, convert to .xlsx first using Excel COM
     if input_file_name.endswith('.xlsb'):
-        if not HAS_PYXLSB:
-            print(f"Error: Cannot process .xlsb files without pyxlsb. Install with: pip install pyxlsb")
+        if not HAS_WIN32COM:
+            print(f"Error: Cannot process .xlsb files without win32com. Install with: pip install pywin32")
             return
         
-        # Convert .xlsb to .xlsx
+        # Convert .xlsb to .xlsx using Excel
         temp_xlsx = input_file_name.replace('.xlsb', '_temp.xlsx')
         try:
-            # Read with pyxlsb and save as xlsx
-            df = pd.read_excel(input_file_name, engine='pyxlsb', sheet_name=sheet_name)
-            df.to_excel(temp_xlsx, index=False, engine='openpyxl', sheet_name=sheet_name)
+            excel = win32com.client.Dispatch('Excel.Application')
+            excel.DisplayAlerts = False
+            excel.Visible = False
+            wb = excel.Workbooks.Open(os.path.abspath(input_file_name))
+            # Save as xlsx (FileFormat 51 = xlsx)
+            wb.SaveAs(os.path.abspath(temp_xlsx), FileFormat=51)
+            wb.Close()
+            excel.Quit()
             input_file_name = temp_xlsx
             print(f"Converted .xlsb to temporary .xlsx: {temp_xlsx}")
         except Exception as e:
             print(f"Error converting .xlsb to .xlsx: {e}")
+            try:
+                excel.Quit()
+            except:
+                pass
             return
     
     wb = load_workbook(input_file_name)
