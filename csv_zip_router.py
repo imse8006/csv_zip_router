@@ -82,8 +82,10 @@ def find_latest_month_in_destination(dest_dir: Path, base_filename: str) -> Opti
     if not found_months:
         return None
     
-    # Return the latest month (last in alphabetical order for our use case)
-    return max(found_months)
+    # Return the latest month chronologically
+    # Sort by month index in MONTHS list
+    found_months.sort(key=lambda m: MONTHS.index(m))
+    return found_months[-1]
 
 def add_month_suffix_to_filename(filename: str, month: str) -> str:
     """Add month suffix to filename before the extension."""
@@ -251,13 +253,12 @@ def extract_and_route_zip(
                     # Special handling for BASE_RISTOURNABLE files in dry-run
                     current_filename = modified_name
                     if "BASE_RISTOURNABLE" in modified_name and "P&L" in str(dest_dir):
-                        base_filename = Path(modified_name).stem
-                        latest_month = find_latest_month_in_destination(dest_dir, base_filename)
-                        if latest_month:
-                            next_month = get_next_month(latest_month)
-                            current_filename = add_month_suffix_to_filename(modified_name, next_month)
-                        else:
-                            current_filename = add_month_suffix_to_filename(modified_name, "Sep")
+                        # Calculate the target month (previous month from current date)
+                        from datetime import datetime
+                        current_month_index = datetime.now().month - 1  # 0-based
+                        prev_month_index = (current_month_index - 1) % 12
+                        target_month = MONTHS[prev_month_index]
+                        current_filename = add_month_suffix_to_filename(modified_name, target_month)
                     
                     logging.info(f"[DRY-RUN] {zip_path.name} -> {current_filename} => {dest_dir}")
                     results.append((zip_path, dest_dir / current_filename))
@@ -282,19 +283,15 @@ def extract_and_route_zip(
                         # Extract base filename without extension
                         base_filename = Path(modified_name).stem
                         
-                        # Find the latest month in destination directory
-                        latest_month = find_latest_month_in_destination(dest_dir, base_filename)
+                        # Calculate the target month (previous month from current date)
+                        from datetime import datetime
+                        current_month_index = datetime.now().month - 1  # 0-based
+                        prev_month_index = (current_month_index - 1) % 12
+                        target_month = MONTHS[prev_month_index]
                         
-                        if latest_month:
-                            # Get next month
-                            next_month = get_next_month(latest_month)
-                            # Add month suffix to the filename
-                            current_filename = add_month_suffix_to_filename(modified_name, next_month)
-                            logging.info(f"Auto-detected next month for {base_filename}: {next_month}")
-                        else:
-                            # No existing files, default to Sep (current month)
-                            current_filename = add_month_suffix_to_filename(modified_name, "Sep")
-                            logging.info(f"No existing files found, defaulting to Sep for {base_filename}")
+                        # Add month suffix to the filename
+                        current_filename = add_month_suffix_to_filename(modified_name, target_month)
+                        logging.info(f"Using data month for {base_filename}: {target_month} (current date month - 1)")
                     
                     # Create a temporary copy for each destination to avoid conflicts
                     if current_filename != modified_name:
