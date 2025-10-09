@@ -82,7 +82,7 @@ def process_suppliers_promotion_data():
         print(f"  Error processing SUPPLIERS_PROMOTION_DATA: {e}")
 
 def process_bible():
-    """Process BIBLE file: no processing needed, file stays as .xlsb."""
+    """Process BIBLE file: rename with previous month suffix."""
     print("Processing BIBLE...")
     
     # Find the file
@@ -93,7 +93,49 @@ def process_bible():
         print(f"  No file found matching pattern: {pattern}")
         return
     
-    print(f"  Found file: {files[0].name} - no processing needed, keeping as .xlsb")
+    input_file = files[0]
+    print(f"  Found file: {input_file.name}")
+    
+    try:
+        # Extract year from filename (e.g., "Bible 3xNET Conso 2025.xlsb" -> "2025")
+        year_match = re.search(r'(\d{4})', input_file.stem)
+        if not year_match:
+            print(f"  Could not extract year from filename: {input_file.name}")
+            return
+        
+        year = year_match.group(1)
+        prev_month = get_previous_month()
+        
+        # Create new filename with previous month
+        new_filename = f"Bible 3xNET Conso {year} {prev_month}.xlsb"
+        output_file = FRANCE_FILES_DIR / new_filename
+        
+        # Check for existing files in France files directory (excluding the current file)
+        existing_files = [f for f in FRANCE_FILES_DIR.glob("Bible 3xNET Conso *.xlsb") 
+                         if f.name != input_file.name and ' ' in f.stem.split()[-1]]
+        
+        if existing_files:
+            # Get the most recent file
+            latest_existing = max(existing_files, key=lambda p: p.stat().st_mtime)
+            # Extract month from latest existing file
+            latest_month_match = re.search(r'\b(' + '|'.join(MONTHS_EN) + r')\b', latest_existing.stem)
+            
+            if latest_month_match:
+                latest_month = latest_month_match.group(1)
+                # Get expected previous month (should be 2 months before current)
+                expected_prev_month = MONTHS_EN[(datetime.now().month - 3) % 12]
+                
+                if latest_month != expected_prev_month:
+                    print(f"  WARNING: Latest existing file has month '{latest_month}', expected '{expected_prev_month}'")
+                else:
+                    print(f"  ✓ Verified: Latest existing file month is correct ({latest_month})")
+        
+        # Rename the file
+        input_file.rename(output_file)
+        print(f"  Renamed to: {output_file.name}")
+        
+    except Exception as e:
+        print(f"  Error processing BIBLE: {e}")
 
 def process_promos_ponctuelles():
     """Process PROMOS_PONCTUELLES file: no processing needed."""
