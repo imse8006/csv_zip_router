@@ -29,7 +29,8 @@ def get_latest_lumpsums_file(base_dir: Path) -> Path:
 
 latest_input = get_latest_lumpsums_file(FRANCE_FILES_DIR)
 input_file_name = str(latest_input)
-output_file_name = str(latest_input.with_stem(latest_input.stem + "_output"))
+# Output as .xlsx instead of .xlsb
+output_file_name = str(latest_input.with_stem(latest_input.stem + "_output").with_suffix('.xlsx'))
 sheet_name = 'Lumpsums 2025'
 
 def deduplicate_and_preserve_format(input_file_name, output_file_name, sheet_name):
