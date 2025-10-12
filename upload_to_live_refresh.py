@@ -14,6 +14,7 @@ Usage:
 """
 
 import os
+import re
 import shutil
 import zipfile
 import tempfile
@@ -22,6 +23,58 @@ from pathlib import Path
 # Local paths - using OneDrive synchronized folder
 LIVE_REFRESH_BASE = Path(r"C:\Users\il00030293\OneDrive - Sysco Corporation\Fichiers de Ramwani, Shruti 179 - Better Selling\LIVE Refresh folder")
 FRANCE_FILES_DIR = Path(r"C:\Users\il00030293\OneDrive - Sysco Corporation\Documents\PGM\France files")
+
+def extract_week_number(filename):
+    """Extract week number from filename (e.g., EFFECTIF_2025_40.csv -> 202540)."""
+    match = re.search(r'_(\d{4})_(\d{2})\.csv', str(filename))
+    if match:
+        year = int(match.group(1))
+        week = int(match.group(2))
+        return year * 100 + week  # Returns 202540 for comparison
+    return 0
+
+def check_if_update_needed():
+    """Check if new files are more recent than existing ones in Latest folder."""
+    try:
+        # Check one representative file (TARIF_GENERAL)
+        new_zip_files = list(FRANCE_FILES_DIR.glob("SYSFR_PGM_TARIF_GENERAL_*.zip"))
+        
+        if not new_zip_files:
+            print("Warning: No new TARIF_GENERAL file found in France files")
+            return True  # Continue anyway if no file found
+        
+        # Extract week number from new file
+        new_week = extract_week_number(new_zip_files[0].name)
+        
+        # Check existing file in Latest folder
+        latest_folder = LIVE_REFRESH_BASE / "Latest Tarif General"
+        if not latest_folder.exists():
+            return True  # Latest folder doesn't exist, proceed
+        
+        existing_files = list(latest_folder.glob("SYSFR_PGM_TARIF_GENERAL_*.csv"))
+        
+        if not existing_files:
+            return True  # No existing file, proceed
+        
+        # Extract week number from existing file
+        old_week = extract_week_number(existing_files[0].name)
+        
+        if new_week <= old_week:
+            print(f"\n{'='*80}")
+            print(f"⚠️  LIVE Refresh update SKIPPED")
+            print(f"{'='*80}")
+            print(f"Reason: New files (week {new_week % 100}) are NOT more recent than existing files (week {old_week % 100})")
+            print(f"New file: {new_zip_files[0].name}")
+            print(f"Existing file: {existing_files[0].name}")
+            print(f"{'='*80}\n")
+            return False
+        
+        print(f"\n✓ Version check passed: New files (week {new_week % 100}) are more recent than existing (week {old_week % 100})")
+        return True
+        
+    except Exception as e:
+        print(f"Warning: Error checking version: {e}")
+        return True  # Continue anyway on error
 
 def check_local_folder_access():
     """Check if we can access the local LIVE Refresh folder."""
@@ -176,6 +229,10 @@ def upload_to_live_refresh():
     # Check if we can access the LIVE Refresh folder
     if not check_local_folder_access():
         return 1
+    
+    # Check if update is needed (version check)
+    if not check_if_update_needed():
+        return 0  # Exit gracefully, no update needed
     
     # Step 1: Rotate Latest -> Previous folders
     print("\n[1/3] Rotating Latest -> Previous folders...")
