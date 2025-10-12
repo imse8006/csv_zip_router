@@ -40,28 +40,48 @@ def check_if_update_needed():
         new_zip_files = list(FRANCE_FILES_DIR.glob("SYSFR_PGM_TARIF_GENERAL_*.zip"))
         
         if not new_zip_files:
-            print("Warning: No new TARIF_GENERAL file found in France files")
-            return True  # Continue anyway if no file found
+            print(f"\n{'='*80}")
+            print(f"[X] LIVE Refresh update SKIPPED")
+            print(f"{'='*80}")
+            print(f"Reason: No new files found in France files directory")
+            print(f"France files directory: {FRANCE_FILES_DIR}")
+            print(f"{'='*80}\n")
+            return False  # STOP if no files
         
         # Extract week number from new file
         new_week = extract_week_number(new_zip_files[0].name)
         
+        if new_week == 0:
+            print(f"\n{'='*80}")
+            print(f"[X] LIVE Refresh update SKIPPED")
+            print(f"{'='*80}")
+            print(f"Reason: Cannot extract week number from file: {new_zip_files[0].name}")
+            print(f"{'='*80}\n")
+            return False
+        
         # Check existing file in Latest folder
         latest_folder = LIVE_REFRESH_BASE / "Latest Tarif General"
         if not latest_folder.exists():
-            return True  # Latest folder doesn't exist, proceed
+            print(f"\n✓ Version check passed: Latest folder doesn't exist yet, proceeding with initial upload")
+            return True
         
         existing_files = list(latest_folder.glob("SYSFR_PGM_TARIF_GENERAL_*.csv"))
         
         if not existing_files:
-            return True  # No existing file, proceed
+            print(f"\n✓ Version check passed: No existing files in Latest folder, proceeding with initial upload")
+            return True
         
         # Extract week number from existing file
         old_week = extract_week_number(existing_files[0].name)
         
+        if old_week == 0:
+            print(f"\n✓ Version check passed: Cannot determine existing version, proceeding with update")
+            return True
+        
+        # Compare versions
         if new_week <= old_week:
             print(f"\n{'='*80}")
-            print(f"⚠️  LIVE Refresh update SKIPPED")
+            print(f"[!] LIVE Refresh update SKIPPED")
             print(f"{'='*80}")
             print(f"Reason: New files (week {new_week % 100}) are NOT more recent than existing files (week {old_week % 100})")
             print(f"New file: {new_zip_files[0].name}")
@@ -69,12 +89,23 @@ def check_if_update_needed():
             print(f"{'='*80}\n")
             return False
         
-        print(f"\n✓ Version check passed: New files (week {new_week % 100}) are more recent than existing (week {old_week % 100})")
+        print(f"\n{'='*80}")
+        print(f"[OK] Version check PASSED")
+        print(f"{'='*80}")
+        print(f"New files (week {new_week % 100}) are more recent than existing files (week {old_week % 100})")
+        print(f"New file: {new_zip_files[0].name}")
+        print(f"Existing file: {existing_files[0].name}")
+        print(f"Proceeding with rotation and update...")
+        print(f"{'='*80}\n")
         return True
         
     except Exception as e:
-        print(f"Warning: Error checking version: {e}")
-        return True  # Continue anyway on error
+        print(f"\n{'='*80}")
+        print(f"[X] LIVE Refresh update SKIPPED")
+        print(f"{'='*80}")
+        print(f"Reason: Error checking version: {e}")
+        print(f"{'='*80}\n")
+        return False  # STOP on error to avoid data loss
 
 def check_local_folder_access():
     """Check if we can access the local LIVE Refresh folder."""
