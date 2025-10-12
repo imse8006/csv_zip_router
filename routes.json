@@ -7,6 +7,7 @@
   {"pattern": "SYSFR_PGM_MD_ITEM_DATA.csv",             "dest": "C:\\Users\\il00030293\\OneDrive - Sysco Corporation\\Documents\\PGM\\FR Scorecard\\1. Input consolidation\\Inputs"},
   {"pattern": "SYSFR_PGM_MD_ITEM_DATA.csv",             "dest": "C:\\Users\\il00030293\\OneDrive - Sysco Corporation\\Documents\\PGM\\FR BB\\1. Inputs\\Sales X Purchase\\Latest Item Master"},
   {"pattern": "SYSFR_PGM_MD_RMPZ_2025_*.csv",           "dest": "C:\\Users\\il00030293\\OneDrive - Sysco Corporation\\Documents\\PGM\\FR Scorecard\\1. Input consolidation\\Inputs"},
+  {"pattern": "SYSFR_PGM_MD_RCCZ_2025_*.csv",           "dest": "C:\\Users\\il00030293\\OneDrive - Sysco Corporation\\Documents\\PGM\\FR Scorecard\\1. Input consolidation\\Inputs"},
   {"pattern": "SYSFR_PGM_MD_SECTORISATION_*.csv",       "dest": "C:\\Users\\il00030293\\OneDrive - Sysco Corporation\\Documents\\PGM\\FR Scorecard\\1. Input consolidation\\Inputs\\Sectorisation files"},
   {"pattern": "SYSFR_PGM_PRODUITS_TARIF*.csv",          "dest": "C:\\Users\\il00030293\\OneDrive - Sysco Corporation\\Documents\\PGM\\FR Scorecard\\1. Input consolidation\\Inputs"},
   {"pattern": "SYSFR_PGM_SALES_DATA_*.csv",             "dest": "C:\\Users\\il00030293\\OneDrive - Sysco Corporation\\Documents\\PGM\\FR Scorecard\\1. Input consolidation\\Inputs\\Sales after week 32 2024"},

@@ -19,9 +19,10 @@ $Downloader = Join-Path $ScriptDir 'download_sharepoint_latest.py'
 $Router    = Join-Path $ScriptDir 'csv_zip_router.py'
 $Lumpsums  = Join-Path $ScriptDir 'deduplicate_lumpsums.py'
 $NonSysfr  = Join-Path $ScriptDir 'process_non_sysfr_files.py'
+$UploadLive = Join-Path $ScriptDir 'upload_to_live_refresh.py'
 $Mapping   = Join-Path $ScriptDir 'routes.json'
 
-Write-Host "[1/6] Download SYSFR_PGM_ files from SharePoint -> $OutDir" -ForegroundColor Cyan
+Write-Host "[1/7] Download SYSFR_PGM_ files from SharePoint -> $OutDir" -ForegroundColor Cyan
 $argsDownloadSysfr = @(
     $Downloader,
     '--site', $SiteUrl,
@@ -35,7 +36,7 @@ if ($NoWarnAge) { $argsDownloadSysfr += '--no-warn-age' }
 
 & py @argsDownloadSysfr
 
-Write-Host "[2/6] Download 5 non-SYSFR_PGM_ files from SharePoint -> $OutDir" -ForegroundColor Cyan
+Write-Host "[2/7] Download 5 non-SYSFR_PGM_ files from SharePoint -> $OutDir" -ForegroundColor Cyan
 $argsDownloadNonSysfr = @(
     $Downloader,
     '--site', $SiteUrl,
@@ -56,13 +57,13 @@ if ($PauseSeconds -gt 0) {
   Start-Sleep -Seconds $PauseSeconds
 }
 
-Write-Host "[3/6] Run lumpsums deduplication on France files" -ForegroundColor Cyan
+Write-Host "[3/7] Run lumpsums deduplication on France files" -ForegroundColor Cyan
 & py $Lumpsums
 
-Write-Host "[4/6] Process non-SYSFR_PGM_ files" -ForegroundColor Cyan
+Write-Host "[4/7] Process non-SYSFR_PGM_ files" -ForegroundColor Cyan
 & py $NonSysfr
 
-Write-Host "[5/6] Route downloaded files according to routes.json" -ForegroundColor Cyan
+Write-Host "[5/7] Route downloaded files according to routes.json" -ForegroundColor Cyan
 $argsRoute = @(
     $Router,
     $OutDir,
@@ -75,8 +76,11 @@ $argsRoute = @(
 
 & py @argsRoute
 
-Write-Host "[6/6] Route individual processed files" -ForegroundColor Cyan
+Write-Host "[6/7] Route individual processed files" -ForegroundColor Cyan
 & py route_individual_files.py
+
+Write-Host "[7/7] Upload files to LIVE Refresh folder with rotation" -ForegroundColor Cyan
+& py $UploadLive
 
 Write-Host "Pipeline done." -ForegroundColor Green
 

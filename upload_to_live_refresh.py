@@ -15,130 +15,95 @@ Usage:
 
 import os
 import shutil
-import ssl
 from pathlib import Path
-import time
 
-# Disable SSL verification BEFORE importing office365
-os.environ['REQUESTS_CA_BUNDLE'] = ''
-os.environ['CURL_CA_BUNDLE'] = ''
-os.environ['PYTHONHTTPSVERIFY'] = '0'
-
-import urllib3
-urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
-ssl._create_default_https_context = ssl._create_unverified_context
-
-# Patch requests to disable SSL verification
-import requests
-requests.packages.urllib3.disable_warnings()
-
-original_request = requests.Session.request
-def patched_request(self, *args, **kwargs):
-    kwargs['verify'] = False
-    return original_request(self, *args, **kwargs)
-requests.Session.request = patched_request
-
-from office365.sharepoint.client_context import ClientContext
-from office365.runtime.auth.client_credential import ClientCredential
-from office365.sharepoint.files.file import File
-from office365.runtime.auth.authentication_context import AuthenticationContext
-
-# SharePoint Configuration - using environment variables
-SHAREPOINT_SITE_URL = os.getenv("SHAREPOINT_SITE_URL", "https://sysco.sharepoint.com/sites/PGMDatabaseSyscoandBain")
-CLIENT_ID = os.getenv("SHAREPOINT_CLIENT_ID", "2e4aa039-2d8a-4974-991a-063b4aa97378")
-CLIENT_SECRET = os.getenv("SHAREPOINT_CLIENT_SECRET", "")
-
-# Base path for LIVE Refresh folder (to be updated with correct path)
-LIVE_REFRESH_BASE = "/sites/PGMDatabaseSyscoandBain/Shared Documents/General/FR/3. Exports de données pour Bain/2. Exports hebdomadaires/LIVE Refresh folder"
-
-# Local directory where processed files are located
+# Local paths - using OneDrive synchronized folder
+LIVE_REFRESH_BASE = Path(r"C:\Users\il00030293\OneDrive - Sysco Corporation\Fichiers de Ramwani, Shruti 179 - LIVE Refresh folder")
 FRANCE_FILES_DIR = Path(r"C:\Users\il00030293\OneDrive - Sysco Corporation\Documents\PGM\France files")
 
-def get_sharepoint_context():
-    """Get authenticated SharePoint context."""
+def check_local_folder_access():
+    """Check if we can access the local LIVE Refresh folder."""
     try:
-        if not CLIENT_SECRET:
-            print("Error: SHAREPOINT_CLIENT_SECRET environment variable not set")
-            return None
-            
-        ctx = ClientContext(SHAREPOINT_SITE_URL).with_credentials(
-            ClientCredential(CLIENT_ID, CLIENT_SECRET)
-        )
-        ctx.load(ctx.web)
-        ctx.execute_query()
-        print("SharePoint authentication successful")
-        return ctx
+        if not LIVE_REFRESH_BASE.exists():
+            print(f"Error: LIVE Refresh folder not found at: {LIVE_REFRESH_BASE}")
+            print("Make sure OneDrive is synchronized and the folder is accessible.")
+            return False
+        
+        print(f"LIVE Refresh folder found at: {LIVE_REFRESH_BASE}")
+        return True
+        
     except Exception as e:
-        print(f"SharePoint authentication failed: {e}")
-        return None
+        print(f"Error accessing LIVE Refresh folder: {e}")
+        return False
 
-def move_latest_to_previous(ctx, latest_folder_name, previous_folder_name):
+def move_latest_to_previous(latest_folder_name, previous_folder_name):
     """Move all content from Latest folder to Previous folder."""
     try:
-        latest_path = f"{LIVE_REFRESH_BASE}/{latest_folder_name}"
-        previous_path = f"{LIVE_REFRESH_BASE}/{previous_folder_name}"
+        latest_path = LIVE_REFRESH_BASE / latest_folder_name
+        previous_path = LIVE_REFRESH_BASE / previous_folder_name
         
         print(f"  Moving content from '{latest_folder_name}' to '{previous_folder_name}'...")
         
-        # Get Latest folder
-        latest_folder = ctx.web.get_folder_by_server_relative_url(latest_path)
-        ctx.load(latest_folder)
-        ctx.execute_query()
+        if not latest_path.exists():
+            print(f"    Latest folder not found: {latest_path}")
+            return
         
-        # Get Previous folder
-        previous_folder = ctx.web.get_folder_by_server_relative_url(previous_path)
-        ctx.load(previous_folder)
-        ctx.execute_query()
+        # Create previous folder if it doesn't exist
+        previous_path.mkdir(parents=True, exist_ok=True)
         
-        # Get all files in Latest folder
-        files = latest_folder.files
-        ctx.load(files)
-        ctx.execute_query()
+        # Move all files from latest to previous
+        moved_count = 0
+        for item in latest_path.iterdir():
+            if item.is_file():
+                target = previous_path / item.name
+                shutil.move(str(item), str(target))
+                print(f"    Moved: {item.name}")
+                moved_count += 1
+            elif item.is_dir():
+                # For subdirectories, move them as well
+                target = previous_path / item.name
+                shutil.move(str(item), str(target))
+                print(f"    Moved directory: {item.name}")
+                moved_count += 1
         
-        if files:
-            for file in files:
-                # Copy file to Previous folder
-                file_url = f"{previous_path}/{file.properties['Name']}"
-                file.move_to(file_url)
-                ctx.execute_query()
-                print(f"    Moved: {file.properties['Name']}")
-        else:
+        if moved_count == 0:
             print(f"    No files to move in '{latest_folder_name}'")
+        else:
+            print(f"    Moved {moved_count} item(s)")
             
     except Exception as e:
         print(f"  Error moving {latest_folder_name} to {previous_folder_name}: {e}")
 
-def upload_file_to_folder(ctx, local_file_path, target_folder_path, filename=None):
-    """Upload a local file to a SharePoint folder."""
+def copy_file_to_folder(local_file_path, target_folder_path, filename=None):
+    """Copy a local file to a local target folder."""
     try:
         if not local_file_path.exists():
             print(f"  File not found: {local_file_path}")
             return False
-            
-        target_folder = ctx.web.get_folder_by_server_relative_url(target_folder_path)
-        ctx.load(target_folder)
-        ctx.execute_query()
+        
+        # Create target folder if it doesn't exist
+        target_folder_path.mkdir(parents=True, exist_ok=True)
         
         # Use provided filename or original filename
-        upload_filename = filename or local_file_path.name
+        target_filename = filename or local_file_path.name
+        target_file = target_folder_path / target_filename
         
-        with open(local_file_path, "rb") as file_content:
-            target_folder.files.add(upload_filename, file_content, True)  # True = overwrite
-            ctx.execute_query()
+        # Copy file (overwrite if exists)
+        shutil.copy2(local_file_path, target_file)
         
-        print(f"  Uploaded: {upload_filename} -> {target_folder_path}")
+        print(f"  Copied: {target_filename} -> {target_folder_path}")
         return True
         
     except Exception as e:
-        print(f"  Error uploading {local_file_path.name}: {e}")
+        print(f"  Error copying {local_file_path.name}: {e}")
         return False
 
 def upload_to_live_refresh():
-    """Main function to upload files to LIVE Refresh folder with rotation."""
+    """Main function to copy files to LIVE Refresh folder with rotation."""
     print("Starting upload to LIVE Refresh folder...")
     
-    ctx = get_sharepoint_context()
-    if not ctx:
+    # Check if we can access the LIVE Refresh folder
+    if not check_local_folder_access():
         return 1
     
     # Step 1: Rotate Latest -> Previous folders
@@ -151,55 +116,56 @@ def upload_to_live_refresh():
     ]
     
     for latest_name, previous_name in rotation_pairs:
-        move_latest_to_previous(ctx, latest_name, previous_name)
+        move_latest_to_previous(latest_name, previous_name)
     
-    # Step 2: Upload specific files to Latest folders
-    print("\n[2/3] Uploading files to Latest folders...")
+    # Step 2: Copy specific files to Latest folders
+    print("\n[2/3] Copying files to Latest folders...")
     
-    # Upload TARIF_GENERAL to Latest Tarif General
+    # Copy TARIF_GENERAL to Latest Tarif General
     tarif_files = list(FRANCE_FILES_DIR.glob("SYSFR_PGM_TARIF_GENERAL_*.csv"))
     if tarif_files:
-        latest_tarif_path = f"{LIVE_REFRESH_BASE}/Latest Tarif General"
-        upload_file_to_folder(ctx, tarif_files[0], latest_tarif_path)
+        latest_tarif_path = LIVE_REFRESH_BASE / "Latest Tarif General"
+        copy_file_to_folder(tarif_files[0], latest_tarif_path)
     
-    # Upload EFFECTIF to Latest Effectif file
+    # Copy EFFECTIF to Latest Effectif file
     effectif_files = list(FRANCE_FILES_DIR.glob("SYSFR_PGM_EFFECTIF_*.csv"))
     if effectif_files:
-        latest_effectif_path = f"{LIVE_REFRESH_BASE}/Latest Effectif file"
-        upload_file_to_folder(ctx, effectif_files[0], latest_effectif_path)
+        latest_effectif_path = LIVE_REFRESH_BASE / "Latest Effectif file"
+        copy_file_to_folder(effectif_files[0], latest_effectif_path)
     
-    # Upload RMPZ to Latest Sectorization/RMPZ
+    # Copy RMPZ to Latest Sectorization/RMPZ
     rmpz_files = list(FRANCE_FILES_DIR.glob("SYSFR_PGM_MD_RMPZ_*.csv"))
     if rmpz_files:
-        latest_rmpz_path = f"{LIVE_REFRESH_BASE}/Latest Sectorization/RMPZ"
-        upload_file_to_folder(ctx, rmpz_files[0], latest_rmpz_path)
+        latest_rmpz_path = LIVE_REFRESH_BASE / "Latest Sectorization" / "RMPZ"
+        copy_file_to_folder(rmpz_files[0], latest_rmpz_path)
     
-    # Upload RCCZ to Latest Sectorization/RCCZ
+    # Copy RCCZ to Latest Sectorization/RCCZ
     rccz_files = list(FRANCE_FILES_DIR.glob("SYSFR_PGM_MD_RCCZ_*.csv"))
     if rccz_files:
-        latest_rccz_path = f"{LIVE_REFRESH_BASE}/Latest Sectorization/RCCZ"
-        upload_file_to_folder(ctx, rccz_files[0], latest_rccz_path)
+        latest_rccz_path = LIVE_REFRESH_BASE / "Latest Sectorization" / "RCCZ"
+        copy_file_to_folder(rccz_files[0], latest_rccz_path)
     
-    # Upload SECTORISATION to Latest Sectorization/Sectorization
+    # Copy SECTORISATION to Latest Sectorization/Sectorization
     sectorisation_files = list(FRANCE_FILES_DIR.glob("SYSFR_PGM_MD_SECTORISATION_*.csv"))
     if sectorisation_files:
-        latest_sectorisation_path = f"{LIVE_REFRESH_BASE}/Latest Sectorization/Sectorization"
-        upload_file_to_folder(ctx, sectorisation_files[0], latest_sectorisation_path)
+        latest_sectorisation_path = LIVE_REFRESH_BASE / "Latest Sectorization" / "Sectorization"
+        copy_file_to_folder(sectorisation_files[0], latest_sectorisation_path)
     
-    # Step 3: Upload files to root of LIVE Refresh folder
-    print("\n[3/3] Uploading files to LIVE Refresh folder root...")
+    # Step 3: Copy files to root of LIVE Refresh folder
+    print("\n[3/3] Copying files to LIVE Refresh folder root...")
     
-    # Upload MD_ITEM_DATA to root
+    # Copy MD_ITEM_DATA to root
     item_data_files = list(FRANCE_FILES_DIR.glob("SYSFR_PGM_MD_ITEM_DATA.csv"))
     if item_data_files:
-        upload_file_to_folder(ctx, item_data_files[0], LIVE_REFRESH_BASE)
+        copy_file_to_folder(item_data_files[0], LIVE_REFRESH_BASE)
     
-    # Upload PRODUITS_TARIF to root
+    # Copy PRODUITS_TARIF to root
     produits_tarif_files = list(FRANCE_FILES_DIR.glob("SYSFR_PGM_PRODUITS_TARIF*.csv"))
     if produits_tarif_files:
-        upload_file_to_folder(ctx, produits_tarif_files[0], LIVE_REFRESH_BASE)
+        copy_file_to_folder(produits_tarif_files[0], LIVE_REFRESH_BASE)
     
     print("\nUpload to LIVE Refresh folder completed!")
+    print("Files will be synchronized to SharePoint automatically via OneDrive.")
     return 0
 
 if __name__ == "__main__":
