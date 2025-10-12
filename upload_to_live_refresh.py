@@ -20,7 +20,7 @@ import tempfile
 from pathlib import Path
 
 # Local paths - using OneDrive synchronized folder
-LIVE_REFRESH_BASE = Path(r"C:\Users\il00030293\OneDrive - Sysco Corporation\Fichiers de Ramwani, Shruti 179 - LIVE Refresh folder")
+LIVE_REFRESH_BASE = Path(r"C:\Users\il00030293\OneDrive - Sysco Corporation\Fichiers de Ramwani, Shruti 179 - Better Selling\LIVE Refresh folder")
 FRANCE_FILES_DIR = Path(r"C:\Users\il00030293\OneDrive - Sysco Corporation\Documents\PGM\France files")
 
 def check_local_folder_access():
