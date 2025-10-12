@@ -15,6 +15,8 @@ Usage:
 
 import os
 import shutil
+import zipfile
+import tempfile
 from pathlib import Path
 
 # Local paths - using OneDrive synchronized folder
@@ -36,43 +38,78 @@ def check_local_folder_access():
         print(f"Error accessing LIVE Refresh folder: {e}")
         return False
 
-def move_latest_to_previous(latest_folder_name, previous_folder_name):
-    """Move all content from Latest folder to Previous folder."""
+def clear_files_in_folder(folder_path, preserve_subfolders=False):
+    """Clear files in a folder, optionally preserving subfolder structure."""
+    if not folder_path.exists():
+        return 0
+    
+    deleted_count = 0
+    for item in folder_path.iterdir():
+        try:
+            if item.is_file():
+                item.unlink()
+                print(f"    Deleted: {item.name}")
+                deleted_count += 1
+            elif item.is_dir() and preserve_subfolders:
+                # Recursively clear files in subfolders
+                sub_deleted = clear_files_in_folder(item, preserve_subfolders=True)
+                deleted_count += sub_deleted
+        except Exception as e:
+            print(f"    Warning: Could not delete {item.name}: {e}")
+    
+    return deleted_count
+
+def clear_latest_folder(latest_folder_name, previous_folder_name):
+    """Clear files in Latest folder without touching folder structure."""
     try:
         latest_path = LIVE_REFRESH_BASE / latest_folder_name
         previous_path = LIVE_REFRESH_BASE / previous_folder_name
         
-        print(f"  Moving content from '{latest_folder_name}' to '{previous_folder_name}'...")
+        print(f"  Clearing files in '{latest_folder_name}' (keeping folder structure)...")
         
         if not latest_path.exists():
             print(f"    Latest folder not found: {latest_path}")
             return
         
-        # Create previous folder if it doesn't exist
-        previous_path.mkdir(parents=True, exist_ok=True)
+        # Just clear the files, preserve all folder structure
+        deleted_count = clear_files_in_folder(latest_path, preserve_subfolders=True)
         
-        # Move all files from latest to previous
-        moved_count = 0
-        for item in latest_path.iterdir():
-            if item.is_file():
-                target = previous_path / item.name
-                shutil.move(str(item), str(target))
-                print(f"    Moved: {item.name}")
-                moved_count += 1
-            elif item.is_dir():
-                # For subdirectories, move them as well
-                target = previous_path / item.name
-                shutil.move(str(item), str(target))
-                print(f"    Moved directory: {item.name}")
-                moved_count += 1
-        
-        if moved_count == 0:
-            print(f"    No files to move in '{latest_folder_name}'")
+        if deleted_count == 0:
+            print(f"    No files to clear in '{latest_folder_name}'")
         else:
-            print(f"    Moved {moved_count} item(s)")
+            print(f"    Cleared {deleted_count} file(s)")
             
     except Exception as e:
-        print(f"  Error moving {latest_folder_name} to {previous_folder_name}: {e}")
+        print(f"  Error clearing {latest_folder_name}: {e}")
+
+def extract_csv_from_zip(zip_path):
+    """Extract CSV file from ZIP archive, preserving the original filename."""
+    try:
+        with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+            # Find CSV files in the archive
+            csv_files = [f for f in zip_ref.namelist() if f.endswith('.csv')]
+            
+            if not csv_files:
+                print(f"  No CSV file found in {zip_path.name}")
+                return None, None
+            
+            # Use the first CSV file
+            csv_filename = csv_files[0]
+            
+            # Extract to temporary directory with original filename
+            temp_dir = Path(tempfile.gettempdir()) / "csv_zip_router_temp"
+            temp_dir.mkdir(exist_ok=True)
+            
+            # Extract with original name
+            zip_ref.extract(csv_filename, temp_dir)
+            temp_path = temp_dir / csv_filename
+            
+            print(f"  Extracted: {csv_filename} from {zip_path.name}")
+            return temp_path, csv_filename
+            
+    except Exception as e:
+        print(f"  Error extracting CSV from {zip_path.name}: {e}")
+        return None, None
 
 def copy_file_to_folder(local_file_path, target_folder_path, filename=None):
     """Copy a local file to a local target folder."""
@@ -106,8 +143,8 @@ def upload_to_live_refresh():
     if not check_local_folder_access():
         return 1
     
-    # Step 1: Rotate Latest -> Previous folders
-    print("\n[1/3] Rotating Latest -> Previous folders...")
+    # Step 1: Clear Latest folders (move to Previous then delete Previous)
+    print("\n[1/3] Clearing Latest folders...")
     
     rotation_pairs = [
         ("Latest Tarif General", "Previous Tarif General"),
@@ -116,53 +153,85 @@ def upload_to_live_refresh():
     ]
     
     for latest_name, previous_name in rotation_pairs:
-        move_latest_to_previous(latest_name, previous_name)
+        clear_latest_folder(latest_name, previous_name)
     
     # Step 2: Copy specific files to Latest folders
     print("\n[2/3] Copying files to Latest folders...")
     
+    temp_files = []  # Keep track of temporary files to clean up
+    
     # Copy TARIF_GENERAL to Latest Tarif General
-    tarif_files = list(FRANCE_FILES_DIR.glob("SYSFR_PGM_TARIF_GENERAL_*.csv"))
-    if tarif_files:
+    tarif_zip_files = list(FRANCE_FILES_DIR.glob("SYSFR_PGM_TARIF_GENERAL_*.zip"))
+    if tarif_zip_files:
         latest_tarif_path = LIVE_REFRESH_BASE / "Latest Tarif General"
-        copy_file_to_folder(tarif_files[0], latest_tarif_path)
+        temp_csv, csv_filename = extract_csv_from_zip(tarif_zip_files[0])
+        if temp_csv:
+            temp_files.append(temp_csv)
+            copy_file_to_folder(temp_csv, latest_tarif_path, csv_filename)
     
     # Copy EFFECTIF to Latest Effectif file
-    effectif_files = list(FRANCE_FILES_DIR.glob("SYSFR_PGM_EFFECTIF_*.csv"))
-    if effectif_files:
+    effectif_zip_files = list(FRANCE_FILES_DIR.glob("SYSFR_PGM_EFFECTIF_*.zip"))
+    if effectif_zip_files:
         latest_effectif_path = LIVE_REFRESH_BASE / "Latest Effectif file"
-        copy_file_to_folder(effectif_files[0], latest_effectif_path)
+        temp_csv, csv_filename = extract_csv_from_zip(effectif_zip_files[0])
+        if temp_csv:
+            temp_files.append(temp_csv)
+            copy_file_to_folder(temp_csv, latest_effectif_path, csv_filename)
     
     # Copy RMPZ to Latest Sectorization/RMPZ
-    rmpz_files = list(FRANCE_FILES_DIR.glob("SYSFR_PGM_MD_RMPZ_*.csv"))
-    if rmpz_files:
+    rmpz_zip_files = list(FRANCE_FILES_DIR.glob("SYSFR_PGM_MD_RMPZ_*.zip"))
+    if rmpz_zip_files:
         latest_rmpz_path = LIVE_REFRESH_BASE / "Latest Sectorization" / "RMPZ"
-        copy_file_to_folder(rmpz_files[0], latest_rmpz_path)
+        temp_csv, csv_filename = extract_csv_from_zip(rmpz_zip_files[0])
+        if temp_csv:
+            temp_files.append(temp_csv)
+            copy_file_to_folder(temp_csv, latest_rmpz_path, csv_filename)
     
     # Copy RCCZ to Latest Sectorization/RCCZ
-    rccz_files = list(FRANCE_FILES_DIR.glob("SYSFR_PGM_MD_RCCZ_*.csv"))
-    if rccz_files:
+    rccz_zip_files = list(FRANCE_FILES_DIR.glob("SYSFR_PGM_MD_RCCZ_*.zip"))
+    if rccz_zip_files:
         latest_rccz_path = LIVE_REFRESH_BASE / "Latest Sectorization" / "RCCZ"
-        copy_file_to_folder(rccz_files[0], latest_rccz_path)
+        temp_csv, csv_filename = extract_csv_from_zip(rccz_zip_files[0])
+        if temp_csv:
+            temp_files.append(temp_csv)
+            copy_file_to_folder(temp_csv, latest_rccz_path, csv_filename)
     
     # Copy SECTORISATION to Latest Sectorization/Sectorization
-    sectorisation_files = list(FRANCE_FILES_DIR.glob("SYSFR_PGM_MD_SECTORISATION_*.csv"))
-    if sectorisation_files:
+    sectorisation_zip_files = list(FRANCE_FILES_DIR.glob("SYSFR_PGM_MD_SECTORISATION_*.zip"))
+    if sectorisation_zip_files:
         latest_sectorisation_path = LIVE_REFRESH_BASE / "Latest Sectorization" / "Sectorization"
-        copy_file_to_folder(sectorisation_files[0], latest_sectorisation_path)
+        temp_csv, csv_filename = extract_csv_from_zip(sectorisation_zip_files[0])
+        if temp_csv:
+            temp_files.append(temp_csv)
+            copy_file_to_folder(temp_csv, latest_sectorisation_path, csv_filename)
     
     # Step 3: Copy files to root of LIVE Refresh folder
     print("\n[3/3] Copying files to LIVE Refresh folder root...")
     
     # Copy MD_ITEM_DATA to root
-    item_data_files = list(FRANCE_FILES_DIR.glob("SYSFR_PGM_MD_ITEM_DATA.csv"))
-    if item_data_files:
-        copy_file_to_folder(item_data_files[0], LIVE_REFRESH_BASE)
+    item_data_zip_files = list(FRANCE_FILES_DIR.glob("SYSFR_PGM_MD_ITEM_DATA.csv.zip"))
+    if item_data_zip_files:
+        temp_csv, csv_filename = extract_csv_from_zip(item_data_zip_files[0])
+        if temp_csv:
+            temp_files.append(temp_csv)
+            copy_file_to_folder(temp_csv, LIVE_REFRESH_BASE, csv_filename)
     
     # Copy PRODUITS_TARIF to root
-    produits_tarif_files = list(FRANCE_FILES_DIR.glob("SYSFR_PGM_PRODUITS_TARIF*.csv"))
-    if produits_tarif_files:
-        copy_file_to_folder(produits_tarif_files[0], LIVE_REFRESH_BASE)
+    produits_tarif_zip_files = list(FRANCE_FILES_DIR.glob("SYSFR_PGM_PRODUITS_TARIF*.zip"))
+    if produits_tarif_zip_files:
+        temp_csv, csv_filename = extract_csv_from_zip(produits_tarif_zip_files[0])
+        if temp_csv:
+            temp_files.append(temp_csv)
+            copy_file_to_folder(temp_csv, LIVE_REFRESH_BASE, csv_filename)
+    
+    # Clean up temporary files
+    print("\nCleaning up temporary files...")
+    for temp_file in temp_files:
+        try:
+            temp_file.unlink()
+            print(f"  Deleted temporary file: {temp_file.name}")
+        except Exception as e:
+            print(f"  Warning: Could not delete temporary file {temp_file.name}: {e}")
     
     print("\nUpload to LIVE Refresh folder completed!")
     print("Files will be synchronized to SharePoint automatically via OneDrive.")
