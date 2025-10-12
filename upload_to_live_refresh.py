@@ -59,28 +59,62 @@ def clear_files_in_folder(folder_path, preserve_subfolders=False):
     
     return deleted_count
 
-def clear_latest_folder(latest_folder_name, previous_folder_name):
-    """Clear files in Latest folder without touching folder structure."""
+def rotate_files_to_previous(latest_folder_name, previous_folder_name):
+    """Move files from Latest to Previous, preserving folder structure."""
     try:
         latest_path = LIVE_REFRESH_BASE / latest_folder_name
         previous_path = LIVE_REFRESH_BASE / previous_folder_name
         
-        print(f"  Clearing files in '{latest_folder_name}' (keeping folder structure)...")
+        print(f"  Rotating '{latest_folder_name}' -> '{previous_folder_name}'...")
         
         if not latest_path.exists():
             print(f"    Latest folder not found: {latest_path}")
             return
         
-        # Just clear the files, preserve all folder structure
-        deleted_count = clear_files_in_folder(latest_path, preserve_subfolders=True)
+        # Ensure previous folder exists
+        previous_path.mkdir(parents=True, exist_ok=True)
         
-        if deleted_count == 0:
-            print(f"    No files to clear in '{latest_folder_name}'")
+        # First, clear old files in Previous folder
+        print(f"    Clearing old files in '{previous_folder_name}'...")
+        old_deleted = clear_files_in_folder(previous_path, preserve_subfolders=True)
+        if old_deleted > 0:
+            print(f"    Deleted {old_deleted} old file(s)")
+        
+        # Now move files from Latest to Previous
+        moved_count = move_files_between_folders(latest_path, previous_path)
+        
+        if moved_count == 0:
+            print(f"    No files to rotate in '{latest_folder_name}'")
         else:
-            print(f"    Cleared {deleted_count} file(s)")
+            print(f"    Moved {moved_count} file(s) to '{previous_folder_name}'")
             
     except Exception as e:
-        print(f"  Error clearing {latest_folder_name}: {e}")
+        print(f"  Error rotating {latest_folder_name}: {e}")
+
+def move_files_between_folders(source_folder, dest_folder):
+    """Move files from source to destination, preserving subfolder structure."""
+    if not source_folder.exists():
+        return 0
+    
+    moved_count = 0
+    for item in source_folder.iterdir():
+        try:
+            if item.is_file():
+                # Move file to destination
+                dest_file = dest_folder / item.name
+                shutil.move(str(item), str(dest_file))
+                print(f"    Moved: {item.name}")
+                moved_count += 1
+            elif item.is_dir():
+                # Recursively move files in subdirectories
+                dest_subfolder = dest_folder / item.name
+                dest_subfolder.mkdir(parents=True, exist_ok=True)
+                sub_moved = move_files_between_folders(item, dest_subfolder)
+                moved_count += sub_moved
+        except Exception as e:
+            print(f"    Warning: Could not move {item.name}: {e}")
+    
+    return moved_count
 
 def extract_csv_from_zip(zip_path):
     """Extract CSV file from ZIP archive, preserving the original filename."""
@@ -143,8 +177,8 @@ def upload_to_live_refresh():
     if not check_local_folder_access():
         return 1
     
-    # Step 1: Clear Latest folders (move to Previous then delete Previous)
-    print("\n[1/3] Clearing Latest folders...")
+    # Step 1: Rotate Latest -> Previous folders
+    print("\n[1/3] Rotating Latest -> Previous folders...")
     
     rotation_pairs = [
         ("Latest Tarif General", "Previous Tarif General"),
@@ -153,7 +187,7 @@ def upload_to_live_refresh():
     ]
     
     for latest_name, previous_name in rotation_pairs:
-        clear_latest_folder(latest_name, previous_name)
+        rotate_files_to_previous(latest_name, previous_name)
     
     # Step 2: Copy specific files to Latest folders
     print("\n[2/3] Copying files to Latest folders...")
