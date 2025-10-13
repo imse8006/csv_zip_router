@@ -83,11 +83,11 @@ def process_suppliers_promotion_data():
         # Create output filename with current date (keep in France files for routing)
         from datetime import datetime
         current_date = datetime.now()
-        date_suffix = current_date.strftime("%Y %b %d")  # Format: "2025 Oct 13"
+        date_suffix = current_date.strftime("%Y.%m.%d")  # Format: "2025.10.13"
         
-        # Extract base name without version suffix (e.g., "SYSFR_PGM_SUPPLIERS_PROMOTION_DATA - v2025.06.02" -> "SYSFR_PGM_SUPPLIERS_PROMOTION_DATA")
-        base_name = "SYSFR_PGM_SUPPLIERS_PROMOTION_DATA"  # Fixed base name
-        output_filename = f"{base_name} {date_suffix}.csv"
+        # Create filename in format: "SYSFR_PGM_SUPPLIERS_PROMOTION_DATA - v2025.10.13.csv"
+        base_name = "SYSFR_PGM_SUPPLIERS_PROMOTION_DATA"
+        output_filename = f"{base_name} - v{date_suffix}.csv"
         output_file = FRANCE_FILES_DIR / output_filename
         
         # Save as CSV UTF-8 with semicolon separator
