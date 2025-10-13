@@ -1,0 +1,31 @@
+# Configuration file for pipeline credentials
+# 
+# INSTRUCTIONS:
+# 1. Copy this file to config.ps1 (which is gitignored)
+# 2. Fill in your actual credentials
+# 3. Use it in your pipeline:
+#    . .\config.ps1
+#    .\run_pipeline.ps1 -ClientId $CLIENT_ID -ClientSecret $CLIENT_SECRET -All
+#
+# WARNING: Never commit config.ps1 to git!
+
+# Azure AD App Registration credentials
+$CLIENT_ID = "your-client-id-here"
+$CLIENT_SECRET = "your-client-secret-here"
+
+# SharePoint configuration
+$SITE_URL = "https://sysco.sharepoint.com/sites/PGMDatabaseSyscoandBain"
+$FOLDER_SYSFR = "/sites/PGMDatabaseSyscoandBain/Shared Documents/General/FR/3.%20Exports%20de%20donn%C3%A9es%20pour%20Bain/2.%20Exports%20hebdomadaires/03.%20CY2025"
+$FOLDER_NON_SYSFR = "/sites/PGMDatabaseSyscoandBain/Shared Documents/General/FR/3.%20Exports%20de%20donn%C3%A9es%20pour%20Bain/2.%20Exports%20hebdomadaires/1.%20Exports%20mensuels"
+
+# Output directory
+$OUT_DIR = "C:\Users\il00030293\OneDrive - Sysco Corporation\Documents\PGM\France files"
+
+# Pipeline options
+$WORKERS = 6
+$PAUSE_SECONDS = 10
+$ON_CONFLICT = "overwrite"  # Options: overwrite, skip, rename
+
+# Export variables for use in other scripts
+Export-ModuleMember -Variable CLIENT_ID, CLIENT_SECRET, SITE_URL, FOLDER_SYSFR, FOLDER_NON_SYSFR, OUT_DIR, WORKERS, PAUSE_SECONDS, ON_CONFLICT
+
