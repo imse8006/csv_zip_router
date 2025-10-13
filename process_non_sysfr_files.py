@@ -80,8 +80,15 @@ def process_suppliers_promotion_data():
         if 'Total Spend' in df.columns:
             df['Total Spend'] = pd.to_numeric(df['Total Spend'], errors='coerce')
         
-        # Create output filename (keep in France files for routing)
-        output_file = FRANCE_FILES_DIR / f"{input_file.stem}.csv"
+        # Create output filename with current date (keep in France files for routing)
+        from datetime import datetime
+        current_date = datetime.now()
+        date_suffix = current_date.strftime("%Y %b %d")  # Format: "2025 Oct 13"
+        
+        # Extract base name without version suffix (e.g., "SYSFR_PGM_SUPPLIERS_PROMOTION_DATA - v2025.06.02" -> "SYSFR_PGM_SUPPLIERS_PROMOTION_DATA")
+        base_name = "SYSFR_PGM_SUPPLIERS_PROMOTION_DATA"  # Fixed base name
+        output_filename = f"{base_name} {date_suffix}.csv"
+        output_file = FRANCE_FILES_DIR / output_filename
         
         # Save as CSV UTF-8 with semicolon separator
         df.to_csv(output_file, index=False, encoding='utf-8', sep='|')
