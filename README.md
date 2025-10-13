@@ -73,7 +73,39 @@ pip install Office365-REST-Python-Client PyYAML pywin32 pandas openpyxl pyxlsb
 
 ## Commands
 
-### Option 1: One-Shot Pipeline (Recommended)
+### Option 1: Quick Run with config.ps1 (RECOMMENDED)
+
+**First time setup:**
+```powershell
+# 1. Create config file from template
+Copy-Item config.ps1.example config.ps1
+
+# 2. Edit config.ps1 with your credentials
+notepad config.ps1
+```
+
+**Then use quick_run.ps1:**
+```powershell
+# Refresh ALL systems (Scorecard + BB + Better Selling)
+.\quick_run.ps1 -All
+
+# Refresh ONLY Scorecard
+.\quick_run.ps1 -EnableScorecard
+
+# Refresh ONLY Better Buying (BB)
+.\quick_run.ps1 -EnableBB
+
+# Refresh ONLY Better Selling (LIVE Refresh)
+.\quick_run.ps1 -EnableBetterSelling
+
+# Combinations
+.\quick_run.ps1 -EnableScorecard -EnableBB
+.\quick_run.ps1 -EnableBB -EnableBetterSelling
+```
+
+**⚠️ IMPORTANT:** `config.ps1` is in `.gitignore` and will NEVER be committed to git!
+
+### Option 2: Manual with credentials
 
 ```powershell
 # Set your credentials
