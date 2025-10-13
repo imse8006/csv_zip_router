@@ -3,6 +3,14 @@
 ## Overview
 This pipeline automatically downloads files from SharePoint, processes them, and routes them to their correct destinations based on pattern matching rules.
 
+**🆕 NEW: Selective Refresh Support**
+You can now choose which systems to refresh:
+- **FR Scorecard**: Data for Scorecard reports
+- **FR Better Buying (BB)**: P&L and purchasing data
+- **Better Selling (LIVE Refresh)**: Real-time data with weekly rotation
+
+Use flags `-EnableScorecard`, `-EnableBB`, `-EnableBetterSelling`, or `-All` to activate the desired refreshes.
+
 ## Complete Process Flow
 
 ### 1. Download SharePoint Files
@@ -67,26 +75,37 @@ pip install Office365-REST-Python-Client PyYAML pywin32 pandas openpyxl pyxlsb
 
 ### Option 1: One-Shot Pipeline (Recommended)
 
-**Note**: The pipeline currently handles only one SharePoint folder. You need to run it twice (once for SYSFR_PGM_ files, once for the 5 non-SYSFR_PGM_ files) or use Option 2 for full control.
-
 ```powershell
 # Set your credentials
-$SITE   = "https://sysco.sharepoint.com/sites/PGMDatabaseSyscoandBain"
 $CID    = "<YOUR_CLIENT_ID>"
 $SECRET = "<YOUR_CLIENT_SECRET>"
-$OUT    = "C:\Users\il00030293\OneDrive - Sysco Corporation\Documents\PGM\France files"
 
-# Example: Run for SYSFR_PGM_ files
-.\run_pipeline.ps1 `
-  -ClientId $CID `
-  -ClientSecret $SECRET `
-  -FolderRel "/sites/PGMDatabaseSyscoandBain/Shared Documents/General/FR/3. Exports de données pour Bain/2. Exports hebdomadaires/03. CY2025" `
-  -PauseSeconds 10 `
-  -SiteUrl $SITE `
-  -OutDir $OUT `
-  -Workers 6 `
-  -OnConflict overwrite
+# Example 1: Refresh ALL systems (Scorecard + BB + Better Selling)
+.\run_pipeline.ps1 -ClientId $CID -ClientSecret $SECRET -All
+
+# Example 2: Refresh ONLY Scorecard
+.\run_pipeline.ps1 -ClientId $CID -ClientSecret $SECRET -EnableScorecard
+
+# Example 3: Refresh ONLY Better Buying (BB)
+.\run_pipeline.ps1 -ClientId $CID -ClientSecret $SECRET -EnableBB
+
+# Example 4: Refresh ONLY Better Selling (LIVE Refresh)
+.\run_pipeline.ps1 -ClientId $CID -ClientSecret $SECRET -EnableBetterSelling
+
+# Example 5: Refresh Scorecard + BB (no Better Selling)
+.\run_pipeline.ps1 -ClientId $CID -ClientSecret $SECRET -EnableScorecard -EnableBB
+
+# Example 6: Refresh BB + Better Selling (no Scorecard)
+.\run_pipeline.ps1 -ClientId $CID -ClientSecret $SECRET -EnableBB -EnableBetterSelling
 ```
+
+**Available Flags:**
+- `-EnableScorecard`: Active le refresh pour FR Scorecard
+- `-EnableBB`: Active le refresh pour FR Better Buying (P&L, Lumpsums, Bible, etc.)
+- `-EnableBetterSelling`: Active le refresh pour Better Selling (LIVE Refresh avec rotation)
+- `-All`: Active tous les refreshes (équivalent à `-EnableScorecard -EnableBB -EnableBetterSelling`)
+
+**⚠️ Important:** Au moins un flag doit être spécifié, sinon le pipeline affiche une erreur et s'arrête.
 
 ### Option 2: Manual Step-by-Step
 ```powershell

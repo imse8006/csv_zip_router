@@ -145,17 +145,36 @@ def load_mapping(mapping_path: Path) -> List[Dict[str, str]]:
 def resolve_destinations(
     csv_name: str,
     mapping: List[Dict[str, str]],
-    default_dest: Optional[Path]
+    default_dest: Optional[Path],
+    target_filter: Optional[str] = None
 ) -> List[Path]:
     """
     Given a CSV filename and the mapping rules, return all matching destination Paths.
     Returns all destinations that match the pattern (not just the first one).
+    
+    Args:
+        csv_name: Name of CSV file
+        mapping: List of routing rules
+        default_dest: Default destination if no matches
+        target_filter: Optional filter - 'scorecard', 'bb', or None for all
+    
+    Returns:
+        List of destination paths
     """
     destinations = []
     
     for rule in mapping:
         if fnmatch.fnmatch(csv_name, rule["pattern"]):
             dest_path = Path(rule["dest"])
+            
+            # Apply filter if specified
+            if target_filter:
+                dest_str = str(dest_path).lower()
+                if target_filter == 'scorecard' and 'scorecard' not in dest_str:
+                    continue
+                elif target_filter == 'bb' and '\\fr bb\\' not in dest_str:
+                    continue
+            
             destinations.append(dest_path)
     
     # If no destinations found, use default
@@ -213,7 +232,8 @@ def extract_and_route_zip(
     work_dir: Path,
     on_conflict: str,
     dry_run: bool = False,
-    verbose: bool = False
+    verbose: bool = False,
+    target_filter: Optional[str] = None
 ) -> List[Tuple[Path, Optional[Path]]]:
     """
     Process one .csv.zip:
@@ -239,7 +259,7 @@ def extract_and_route_zip(
 
         for member in members:
             inner_name = Path(member).name  # ignore internal folders
-            dest_dirs = resolve_destinations(inner_name, mapping, default_dest)
+            dest_dirs = resolve_destinations(inner_name, mapping, default_dest, target_filter)
             if not dest_dirs:
                 logging.warning(f"No route for '{inner_name}'. Skipped. (Add a mapping or set --default-dest)")
                 results.append((zip_path, None))
@@ -334,6 +354,8 @@ def build_arg_parser() -> argparse.ArgumentParser:
     p.add_argument("--workers", type=int, default=4, help="Parallel workers. Default: 4.")
     p.add_argument("--dry-run", action="store_true", help="Do not write files, just log actions.")
     p.add_argument("--verbose", action="store_true", help="Verbose logging.")
+    p.add_argument("--target", choices=["scorecard", "bb", "all"], default="all",
+                   help="Filter destinations: scorecard, bb, or all. Default: all.")
     return p
 
 
@@ -361,13 +383,16 @@ def main() -> int:
 
     args.work_dir.mkdir(parents=True, exist_ok=True)
 
+    # Set target filter
+    target_filter = None if args.target == 'all' else args.target
+
     results: List[Tuple[Path, Optional[Path]]] = []
     with ThreadPoolExecutor(max_workers=max(1, args.workers)) as ex:
         futures = [
             ex.submit(
                 extract_and_route_zip,
                 zp, mapping, args.default_dest, args.work_dir,
-                args.on_conflict, args.dry_run, args.verbose
+                args.on_conflict, args.dry_run, args.verbose, target_filter
             )
             for zp in zips
         ]
