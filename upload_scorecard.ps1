@@ -28,6 +28,16 @@ param(
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $PythonScript = Join-Path $ScriptDir "upload_scorecard_outputs.py"
 
+# Charger les secrets/URLs depuis config.ps1 si présent (sans commit)
+$Config = Join-Path $ScriptDir "config.ps1"
+if (Test-Path $Config) {
+    . $Config
+    # Exporter vers env pour le script Python (préfixe EUPGM_ pour éviter collisions)
+    if (-not [string]::IsNullOrEmpty($CLIENT_ID)) { $env:EUPGM_CLIENT_ID = $CLIENT_ID }
+    if (-not [string]::IsNullOrEmpty($CLIENT_SECRET)) { $env:EUPGM_CLIENT_SECRET = $CLIENT_SECRET }
+    if ([string]::IsNullOrEmpty($env:EUPGM_SITE_URL)) { $env:EUPGM_SITE_URL = "https://sysco.sharepoint.com/sites/EUPGM" }
+}
+
 # Vérifier que Python est disponible
 try {
     $pythonVersion = python --version 2>&1
